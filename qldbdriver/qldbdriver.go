@@ -15,31 +15,36 @@ package qldbdriver
 
 import (
 	"context"
+	"github.com/amzn/ion-go/ion"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
-	"ion-go/ion"
 )
 
 type DriverOptions struct {
-	_          struct{}
-	RetryLimit int
-	PoolLimit  int
+	_               struct{}
+	RetryLimit      uint8
+	PoolLimit       uint64
+	Logger          Logger
+	LoggerVerbosity LogLevel
 }
 
 type QLDBDriver struct {
 	ledgerName  string
 	qldbSession *qldbsession.QLDBSession
 	// Todo: New retry protocol
-	retryLimit  int
-	poolLimit   int
+	retryLimit uint8
+	poolLimit  uint64
+	logger     *qldbLogger
 }
 
-func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns... func(*DriverOptions)) *QLDBDriver {
-	options := &DriverOptions{RetryLimit: 4, PoolLimit: 10}
+func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) *QLDBDriver {
+	// Todo: Change default verbosity to LogInfo
+	options := &DriverOptions{RetryLimit: 4, PoolLimit: 10, Logger: defaultLogger{}, LoggerVerbosity: LogDebug}
 	for _, fn := range fns {
 		fn(options)
 	}
+	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
 	// Todo: Verify options are valid after fn
-	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.PoolLimit}
+	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.PoolLimit, logger}
 }
 
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
@@ -88,9 +93,9 @@ func (driver *QLDBDriver) Close(ctx context.Context) {
 }
 
 func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
-	communicator, err := startSession(ctx, driver.ledgerName, driver.qldbSession)
+	communicator, err := startSession(ctx, driver.ledgerName, driver.qldbSession, driver.logger)
 	if err != nil {
 		return nil, err
 	}
-	return &session{communicator, driver.retryLimit}, nil
+	return &session{communicator, driver.retryLimit, driver.logger}, nil
 }

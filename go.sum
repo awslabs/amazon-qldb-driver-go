@@ -1,5 +1,7 @@
 github.com/amzn/ion-go v0.0.0-20200529170357-c6d91a2c3394 h1:oCxwQWo/9WZrbDHBZ7teFKmOL3Oa7/gmE3ekzbG3kGY=
 github.com/amzn/ion-go v0.0.0-20200529170357-c6d91a2c3394/go.mod h1:EZ4HohQB+x+U+xenCu/pm4jAwlBtHhQ02V2asw8LCfo=
+github.com/amzn/ion-go v0.0.0-20200604130846-e48d64bf8c76 h1:5kJZp3qkNH0pCmiZ/8KoVDa7uQl11cUCjpHUSOc/0RE=
+github.com/amzn/ion-go v0.0.0-20200604130846-e48d64bf8c76/go.mod h1:EZ4HohQB+x+U+xenCu/pm4jAwlBtHhQ02V2asw8LCfo=
 github.com/aws/aws-sdk-go v1.30.22 h1:wImJ8jQrplgmxaTeUY7FrJFn4te/VtWq+mmmJ1TnWAg=
 github.com/aws/aws-sdk-go v1.30.22/go.mod h1:5zCpMtNQVjRREroY7sYe8lOMRSxkhG6MZveU8YkpAk0=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

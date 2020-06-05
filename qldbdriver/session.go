@@ -17,7 +17,8 @@ import "context"
 
 type session struct {
 	communicator *communicator
-	retryLimit   int
+	retryLimit   uint8
+	logger       *qldbLogger
 }
 
 func (session *session) endSession(ctx context.Context) error {
@@ -39,5 +40,5 @@ func (session *session) startTransaction(ctx context.Context) (*transaction, err
 	if err != nil {
 		return nil, err
 	}
-	return &transaction{session.communicator, result.TransactionId}, nil
+	return &transaction{session.communicator, result.TransactionId, session.logger}, nil
 }

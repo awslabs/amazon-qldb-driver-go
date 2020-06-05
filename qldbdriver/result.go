@@ -20,12 +20,13 @@ import (
 )
 
 type Result struct {
-	ctx context.Context
+	ctx          context.Context
 	communicator *communicator
 	txnId        *string
 	pageValues   []*qldbsession.ValueHolder
 	pageToken    *string
 	index        int
+	logger       *qldbLogger
 }
 
 func (result *Result) HasNext() bool {

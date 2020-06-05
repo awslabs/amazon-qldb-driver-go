@@ -27,6 +27,7 @@ type Transaction interface {
 type transaction struct {
 	communicator *communicator
 	id           *string
+	logger       *qldbLogger
 }
 
 func (txn *transaction) execute(ctx context.Context, statement string, parameters ...interface{}) (*Result, error) {
@@ -35,7 +36,7 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 	if error != nil {
 		return nil, error
 	}
-	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0}, nil
+	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger}, nil
 }
 
 func (txn *transaction) commit(ctx context.Context) error {

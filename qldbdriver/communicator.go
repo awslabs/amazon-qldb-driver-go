@@ -15,22 +15,24 @@ package qldbdriver
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
 
 type communicator struct {
 	service      *qldbsession.QLDBSession
 	sessionToken *string
+	logger       *qldbLogger
 }
 
-func startSession(ctx context.Context, ledgerName string, service *qldbsession.QLDBSession) (*communicator, error) {
+func startSession(ctx context.Context, ledgerName string, service *qldbsession.QLDBSession, logger *qldbLogger) (*communicator, error) {
 	startSession := &qldbsession.StartSessionRequest{LedgerName: &ledgerName}
 	request := &qldbsession.SendCommandInput{StartSession: startSession}
 	result, err := service.SendCommandWithContext(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-	return &communicator{service, result.StartSession.SessionToken}, nil
+	return &communicator{service, result.StartSession.SessionToken, logger}, nil
 }
 
 func (communicator *communicator) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
@@ -83,5 +85,6 @@ func (communicator *communicator) startTransaction(ctx context.Context) (*qldbse
 
 func (communicator *communicator) sendCommand(ctx context.Context, request *qldbsession.SendCommandInput) (*qldbsession.SendCommandOutput, error) {
 	request.SetSessionToken(*communicator.sessionToken)
+	communicator.logger.log(fmt.Sprint(request), LogDebug)
 	return communicator.service.SendCommandWithContext(ctx, request)
 }
