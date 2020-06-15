@@ -59,7 +59,7 @@ func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) 
 func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 	const tableNameQuery string = "SELECT name FROM information_schema.user_tables WHERE status = 'ACTIVE'"
 	type tableName struct {
-		Name string `json:"name"`
+		Name string `ion:"name"`
 	}
 
 	executeResult, err := driver.Execute(ctx, func(txn Transaction) (interface{}, error) {
