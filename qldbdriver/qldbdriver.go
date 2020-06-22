@@ -17,34 +17,37 @@ import (
 	"context"
 	"github.com/amzn/ion-go/ion"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
 )
 
 type DriverOptions struct {
 	_               struct{}
 	RetryLimit      uint8
-	PoolLimit       uint64
+	MaxConcurrentTransactions       uint16
 	Logger          Logger
 	LoggerVerbosity LogLevel
 }
 
 type QLDBDriver struct {
 	ledgerName  string
-	qldbSession *qldbsession.QLDBSession
+	qldbSession qldbsessioniface.QLDBSessionAPI
 	// Todo: New retry protocol
-	retryLimit uint8
-	poolLimit  uint64
-	logger     *qldbLogger
+	retryLimit                uint8
+	maxConcurrentTransactions uint16
+	logger                    *qldbLogger
 }
 
 func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) *QLDBDriver {
 	// Todo: Change default verbosity to LogInfo
-	options := &DriverOptions{RetryLimit: 4, PoolLimit: 10, Logger: defaultLogger{}, LoggerVerbosity: LogDebug}
+	options := &DriverOptions{RetryLimit: 4, MaxConcurrentTransactions: 50, Logger: defaultLogger{}, LoggerVerbosity: LogDebug}
 	for _, fn := range fns {
 		fn(options)
 	}
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
-	// Todo: Verify options are valid after fn
-	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.PoolLimit, logger}
+	qldbSDKRetries := 0
+	qldbSession.Client.Config.MaxRetries = &qldbSDKRetries
+	// Todo: Check implications of MaxConcurrentTransactions being 0
+	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.MaxConcurrentTransactions, logger}
 }
 
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {

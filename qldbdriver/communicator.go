@@ -16,16 +16,18 @@ package qldbdriver
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
 )
 
 type communicator struct {
-	service      *qldbsession.QLDBSession
+	service      qldbsessioniface.QLDBSessionAPI
 	sessionToken *string
 	logger       *qldbLogger
 }
 
-func startSession(ctx context.Context, ledgerName string, service *qldbsession.QLDBSession, logger *qldbLogger) (*communicator, error) {
+func startSession(ctx context.Context, ledgerName string, service qldbsessioniface.QLDBSessionAPI, logger *qldbLogger) (*communicator, error) {
 	startSession := &qldbsession.StartSessionRequest{LedgerName: &ledgerName}
 	request := &qldbsession.SendCommandInput{StartSession: startSession}
 	result, err := service.SendCommandWithContext(ctx, request)
@@ -36,11 +38,23 @@ func startSession(ctx context.Context, ledgerName string, service *qldbsession.Q
 }
 
 func (communicator *communicator) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
-	panic("not yet implemented")
+	abortTransaction := &qldbsession.AbortTransactionRequest{}
+	request := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
+	result, err := communicator.sendCommand(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	return result.AbortTransaction, nil
 }
 
-func (communicator *communicator) commitTransaction(ctx context.Context) (*qldbsession.CommitTransactionResult, error) {
-	panic("not yet implemented")
+func (communicator *communicator) commitTransaction(ctx context.Context, txnId *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
+	commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: txnId, CommitDigest: commitDigest}
+	request := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
+	result, err := communicator.sendCommand(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	return result.CommitTransaction, nil
 }
 
 func (communicator *communicator) executeStatement(ctx context.Context, statement *string, txnId *string) (*qldbsession.ExecuteStatementResult, error) {
@@ -83,8 +97,10 @@ func (communicator *communicator) startTransaction(ctx context.Context) (*qldbse
 	return result.StartTransaction, nil
 }
 
-func (communicator *communicator) sendCommand(ctx context.Context, request *qldbsession.SendCommandInput) (*qldbsession.SendCommandOutput, error) {
-	request.SetSessionToken(*communicator.sessionToken)
-	communicator.logger.log(fmt.Sprint(request), LogDebug)
-	return communicator.service.SendCommandWithContext(ctx, request)
+func (communicator *communicator) sendCommand(ctx context.Context, command *qldbsession.SendCommandInput) (*qldbsession.SendCommandOutput, error) {
+	const version string = "0.0.1"
+	const userAgentString = "QLDB Driver for Golang v" + version
+	command.SetSessionToken(*communicator.sessionToken)
+	communicator.logger.log(fmt.Sprint(command), LogDebug)
+	return communicator.service.SendCommandWithContext(ctx, command, request.MakeAddToUserAgentFreeFormHandler(userAgentString))
 }
