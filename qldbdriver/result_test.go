@@ -59,7 +59,7 @@ func TestResult(t *testing.T) {
 
 			assert.True(t, result.HasNext())
 			// Consume first value
-			result.Next(&transactionExecutor{nil,nil})
+			result.Next(&transactionExecutor{nil, nil})
 			// No second value or page to fetch
 			assert.False(t, result.HasNext())
 		})
@@ -72,7 +72,7 @@ func TestResult(t *testing.T) {
 
 			assert.True(t, result.HasNext())
 			// Consume first value
-			result.Next(&transactionExecutor{nil,nil})
+			result.Next(&transactionExecutor{nil, nil})
 			// No second value but has page to fetch
 			assert.True(t, result.HasNext())
 		})
@@ -83,11 +83,11 @@ func TestResult(t *testing.T) {
 			result.index = 0
 			result.pageToken = nil
 
-			ionBinary, err := result.Next(&transactionExecutor{nil,nil})
+			ionBinary, err := result.Next(&transactionExecutor{nil, nil})
 			assert.Nil(t, err)
 			assert.Equal(t, mockIonBinary, ionBinary)
 			// No more values
-			ionBinary, err = result.Next(&transactionExecutor{nil,nil})
+			ionBinary, err = result.Next(&transactionExecutor{nil, nil})
 			assert.Nil(t, ionBinary)
 			assert.Error(t, err)
 		})
@@ -106,15 +106,15 @@ func TestResult(t *testing.T) {
 				testCommunicator.service = mockSession
 
 				// Default page
-				ionBinary, err := result.Next(&transactionExecutor{nil,nil})
+				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
 				assert.Nil(t, err)
 				assert.Equal(t, mockIonBinary, ionBinary)
 				// Fetched page
-				ionBinary, err = result.Next(&transactionExecutor{nil,nil})
+				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
 				assert.Nil(t, err)
 				assert.Equal(t, mockNextIonBinary, ionBinary)
 				// No more results
-				ionBinary, err = result.Next(&transactionExecutor{nil,nil})
+				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
 				assert.Nil(t, ionBinary)
 				assert.Error(t, err)
 			})
@@ -128,11 +128,11 @@ func TestResult(t *testing.T) {
 				testCommunicator.service = mockSession
 
 				// Default page
-				ionBinary, err := result.Next(&transactionExecutor{nil,nil})
+				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
 				assert.Nil(t, err)
 				assert.Equal(t, mockIonBinary, ionBinary)
 				// Fetched page
-				ionBinary, err = result.Next(&transactionExecutor{nil,nil})
+				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
 				assert.Nil(t, ionBinary)
 				assert.Equal(t, mockError, err)
 			})
@@ -176,4 +176,3 @@ func TestBufferedResult(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
-

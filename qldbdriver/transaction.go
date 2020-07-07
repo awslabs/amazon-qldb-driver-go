@@ -16,6 +16,7 @@ package qldbdriver
 import (
 	"context"
 	"errors"
+	"reflect"
 )
 
 type Transaction interface {
@@ -28,9 +29,16 @@ type transaction struct {
 	communicator *communicator
 	id           *string
 	logger       *qldbLogger
+	commitHash   *qldbHash
 }
 
 func (txn *transaction) execute(ctx context.Context, statement string, parameters ...interface{}) (*Result, error) {
+	executeHash, err := toQLDBHash(statement)
+	if err != nil {
+		return nil, err
+	}
+	txn.commitHash = txn.commitHash.dot(executeHash)
+
 	// Todo: parameters
 	executeResult, error := txn.communicator.executeStatement(ctx, &statement, txn.id)
 	if error != nil {
@@ -40,11 +48,17 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 }
 
 func (txn *transaction) commit(ctx context.Context) error {
-	panic("not yet implemented")
-}
+	commitResult, err := txn.communicator.commitTransaction(ctx, txn.id, txn.commitHash.hash)
+	if err != nil {
+		return err
+	}
 
-func (txn *transaction) abort(ctx context.Context) error {
-	panic("not yet implemented")
+	if !reflect.DeepEqual(commitResult.CommitDigest, txn.commitHash.hash) {
+		return errors.New("Transaction's commit digest did not match returned value from QLDB. " +
+			"Please retry with a new transaction. Transaction ID: " + *txn.id)
+	}
+
+	return nil
 }
 
 type transactionExecutor struct {
@@ -69,6 +83,6 @@ func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResu
 }
 
 func (executor *transactionExecutor) Abort() error {
-	executor.txn.abort(executor.ctx)
+	_, _ = executor.txn.communicator.abortTransaction(executor.ctx)
 	return errors.New("transaction aborted")
 }

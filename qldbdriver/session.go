@@ -40,5 +40,11 @@ func (session *session) startTransaction(ctx context.Context) (*transaction, err
 	if err != nil {
 		return nil, err
 	}
-	return &transaction{session.communicator, result.TransactionId, session.logger}, nil
+
+	txnHash, err := toQLDBHash(*result.TransactionId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &transaction{session.communicator, result.TransactionId, session.logger, txnHash}, nil
 }
