@@ -26,7 +26,7 @@ type qldbHash struct {
 }
 
 func toQLDBHash(value interface{}) (*qldbHash, error) {
-	ionValue, err := ion.MarshalText(value)
+	ionValue, err := ion.MarshalBinary(value)
 	if err != nil {
 		return nil, err
 	}

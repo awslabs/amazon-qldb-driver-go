@@ -57,8 +57,12 @@ func (communicator *communicator) commitTransaction(ctx context.Context, txnId *
 	return result.CommitTransaction, nil
 }
 
-func (communicator *communicator) executeStatement(ctx context.Context, statement *string, txnId *string) (*qldbsession.ExecuteStatementResult, error) {
-	executeStatement := &qldbsession.ExecuteStatementRequest{Statement: statement, TransactionId: txnId}
+func (communicator *communicator) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnId *string) (*qldbsession.ExecuteStatementResult, error) {
+	executeStatement := &qldbsession.ExecuteStatementRequest{
+		Parameters:    parameters,
+		Statement:     statement,
+		TransactionId: txnId,
+	}
 	request := &qldbsession.SendCommandInput{ExecuteStatement: executeStatement}
 	result, err := communicator.sendCommand(ctx, request)
 	if err != nil {

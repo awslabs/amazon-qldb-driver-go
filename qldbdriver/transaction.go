@@ -16,6 +16,8 @@ package qldbdriver
 import (
 	"context"
 	"errors"
+	"github.com/amzn/ion-go/ion"
+	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"reflect"
 )
 
@@ -37,12 +39,24 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 	if err != nil {
 		return nil, err
 	}
+	valueHolders := make([]*qldbsession.ValueHolder, len(parameters))
+	for i, parameter := range parameters {
+		parameterHash, err := toQLDBHash(parameter)
+		if err != nil {
+			return nil, err
+		}
+		executeHash = executeHash.dot(parameterHash)
+		// Can ignore error here since toQLDBHash calls MarshalBinary already
+		ionBinary, _ := ion.MarshalBinary(parameter)
+		valueHolder := qldbsession.ValueHolder{IonBinary: ionBinary}
+		valueHolders[i] = &valueHolder
+	}
 	txn.commitHash = txn.commitHash.dot(executeHash)
 
 	// Todo: parameters
-	executeResult, error := txn.communicator.executeStatement(ctx, &statement, txn.id)
-	if error != nil {
-		return nil, error
+	executeResult, err := txn.communicator.executeStatement(ctx, &statement, valueHolders, txn.id)
+	if err != nil {
+		return nil, err
 	}
 	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger}, nil
 }

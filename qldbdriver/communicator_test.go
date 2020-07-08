@@ -111,7 +111,7 @@ func TestExecuteStatement(t *testing.T) {
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
 		testCommunicator.service = mockSession
-		result, err := testCommunicator.executeStatement(context.Background(), nil, nil)
+		result, err := testCommunicator.executeStatement(context.Background(), nil, nil, nil)
 
 		assert.Equal(t, err, mockError)
 		assert.Nil(t, result)
@@ -121,7 +121,7 @@ func TestExecuteStatement(t *testing.T) {
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		testCommunicator.service = mockSession
-		result, err := testCommunicator.executeStatement(context.Background(), nil, nil)
+		result, err := testCommunicator.executeStatement(context.Background(), nil, nil, nil)
 
 		assert.Equal(t, result, &mockExecuteStatement)
 		assert.Nil(t, err)
