@@ -16,9 +16,10 @@ package qldbdriver
 import (
 	"context"
 	"errors"
+	"reflect"
+
 	"github.com/amzn/ion-go/ion"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
-	"reflect"
 )
 
 type Transaction interface {
@@ -68,8 +69,10 @@ func (txn *transaction) commit(ctx context.Context) error {
 	}
 
 	if !reflect.DeepEqual(commitResult.CommitDigest, txn.commitHash.hash) {
-		return errors.New("Transaction's commit digest did not match returned value from QLDB. " +
-			"Please retry with a new transaction. Transaction ID: " + *txn.id)
+		return &txnError{
+			transactionID: *txn.id,
+			message:       "Transaction's commit digest did not match returned value from QLDB. Please retry with a new transaction.",
+		}
 	}
 
 	return nil

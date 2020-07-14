@@ -13,7 +13,14 @@ and limitations under the License.
 
 package qldbdriver
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/qldbsession"
+)
 
 type session struct {
 	communicator *communicator
@@ -29,10 +36,37 @@ func (session *session) endSession(ctx context.Context) error {
 func (session *session) execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	txn, err := session.startTransaction(ctx)
 	if err != nil {
-		return nil, err
+		return nil, session.translateError(ctx, err, "")
 	}
-	txnExecutor := &transactionExecutor{ctx, txn}
-	return fn(txnExecutor)
+
+	result, err := fn(&transactionExecutor{ctx, txn})
+	if err != nil {
+		return nil, session.translateError(ctx, err, *txn.id)
+	}
+
+	err = txn.commit(ctx)
+	if err != nil {
+		return nil, session.translateError(ctx, err, *txn.id)
+	}
+
+	return result, nil
+}
+
+func (session *session) translateError(ctx context.Context, err error, transID string) error {
+	if awsErr, ok := err.(awserr.Error); ok {
+		switch awsErr.Code() {
+		case qldbsession.ErrCodeInvalidSessionException:
+			return err
+		case qldbsession.ErrCodeOccConflictException:
+			return &txnError{transactionID: transID, message: "OCC Conflict Exception.", err: awsErr}
+		case http.StatusText(http.StatusInternalServerError), http.StatusText(http.StatusServiceUnavailable):
+			if err != nil {
+				session.logger.log(fmt.Sprintf("Failed to abort the transaction.\nCaused by %v", err), LogDebug)
+			}
+			return &txnError{transactionID: transID, message: "Service unavailable or internal error.", err: awsErr}
+		}
+	}
+	return err
 }
 
 func (session *session) startTransaction(ctx context.Context) (*transaction, error) {

@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.33.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/stamblerre/gocode v1.0.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/youtube/vitess v2.1.1+incompatible
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/amzn/ion-go/ion"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
 	"github.com/youtube/vitess/go/sync2"
@@ -74,15 +75,55 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 
 //Execute executes the provided function
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
+	return driver.ExecuteWithRetryPolicy(ctx, fn, RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+}
+
+//ExecuteWithRetryPolicy executes the provided function with a customized retry policy
+func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(txn Transaction) (interface{}, error), retryPolicy RetryPolicy) (interface{}, error) {
 	if driver.isClosed {
 		panic("Cannot invoke methods on a closed QLDBDriver.")
 	}
-	session, err := driver.getSession(ctx)
-	if err != nil {
-		return nil, err
+
+	retryAttempted := 0
+
+	for true {
+		session, err := driver.getSession(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := session.execute(ctx, fn)
+		if err != nil {
+			if iseErr, ok := err.(awserr.Error); ok && iseErr.Code() == qldbsession.ErrCodeInvalidSessionException {
+				driver.semaphore.Release()
+
+				// Unlimited retry on InvalidSessionException
+				continue
+			}
+
+			driver.releaseSession(session)
+
+			if txnErr, ok := err.(TransactionError); ok {
+				retryAttempted++
+
+				if retryAttempted <= retryPolicy.MaxRetryLimit {
+					driver.logger.log(fmt.Sprintf("A recoverable error has occurred in Transaction with ID %s. Attempting retry #%d. Error cause: %v",
+						txnErr.TransactionID(), retryAttempted, txnErr), LogDebug)
+
+					time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempted: retryAttempted, RetriedError: txnErr}))
+					// Retry on TransactionError within retry limit
+					continue
+				}
+			}
+
+			return nil, err
+		}
+
+		driver.releaseSession(session)
+		return result, nil
 	}
-	defer driver.releaseSession(session)
-	return session.execute(ctx, fn)
+
+	return nil, nil
 }
 
 //GetTableNames returns the list of Active tables for the ledger
