@@ -67,12 +67,25 @@ func joinHashesPairwise(h1 []byte, h2 []byte) []byte {
 	return concatenated
 }
 
-func hashComparator(h1 []byte, h2 []byte) int8 {
+func hashComparator(h1 []byte, h2 []byte) int16 {
 	if len(h1) != hashSize || len(h2) != hashSize {
 		panic("invalid hash")
 	}
-	for i, h1Byte := range h1 {
-		var difference = int8(h1Byte) - int8(h2[i])
+	for i, _ := range h1 {
+		// Reverse index for little endianness
+		index := hashSize - 1 - i
+
+		// Handle byte being unsigned and overflow
+		h1Int := int16(h1[index])
+		h2Int := int16(h2[index])
+		if h1Int > 127 {
+			h1Int = 0 - (256 - h1Int)
+		}
+		if h2Int > 127 {
+			h2Int = 0 - (256 - h2Int)
+		}
+
+		difference := h1Int - h2Int
 		if difference != 0 {
 			return difference
 		}
