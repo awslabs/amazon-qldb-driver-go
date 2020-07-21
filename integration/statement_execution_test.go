@@ -21,6 +21,9 @@ import (
 
 func TestStatementExecution(t *testing.T) {
 	//setup
+	testbase := createTestBase()
+	testbase.deleteLedger(t)
+	testbase.createLedger(t)
 
 	t.Run("Drop existing table", func(t *testing.T) {
 	})
@@ -71,4 +74,5 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	//teardown
+	testbase.deleteLedger(t)
 }
