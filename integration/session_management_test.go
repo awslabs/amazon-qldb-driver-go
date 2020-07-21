@@ -21,6 +21,9 @@ import (
 
 func TestSessionManagement(t *testing.T) {
 	//setup
+	testbase := createTestBase()
+	testbase.deleteLedger(t)
+	testbase.createLedger(t)
 
 	t.Run("Fail connecting to non existent ledger", func(t *testing.T) {
 	})
@@ -43,4 +46,6 @@ func TestSessionManagement(t *testing.T) {
 	t.Run("Get session when driver is closed", func(t *testing.T) {
 	})
 
+	//cleanup
+	testbase.deleteLedger(t)
 }
