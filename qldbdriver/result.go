@@ -16,6 +16,7 @@ package qldbdriver
 import (
 	"context"
 	"errors"
+
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
 

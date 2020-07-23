@@ -16,12 +16,13 @@ package qldbdriver
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 func TestStartSession(t *testing.T) {
