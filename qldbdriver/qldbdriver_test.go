@@ -454,7 +454,7 @@ func TestGetSession(t *testing.T) {
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
-		semaphore:                 sync2.NewSemaphore(int(10), time.Duration(10)*time.Second),
+		semaphore:                 sync2.NewSemaphore(int(10), 0),
 		sessionPool:               make(chan *session, 10),
 	}
 
@@ -507,99 +507,47 @@ func TestGetSession(t *testing.T) {
 		assert.Equal(t, session1Retry, session.retryLimit)
 	})
 
-	t.Run("success through new session with non empty pool", func(t *testing.T) {
-		abortTransaction := &qldbsession.AbortTransactionRequest{}
-		abortRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
-		abortRequest.SetSessionToken(mockDriverSessionToken)
+	testDriver.Close(context.Background())
+}
 
-		mockSendCommandForSession := qldbsession.SendCommandOutput{
-			AbortTransaction:  &mockAbortTransaction,
-			CommitTransaction: &mockCommitTransaction,
-			EndSession:        &mockEndSession,
-			ExecuteStatement:  &mockExecuteStatement,
-			FetchPage:         &mockFetchPage,
-			StartSession:      &mockStartSession,
-			StartTransaction:  &mockStartTransactionWithID,
+func TestSessionPoolCapacity(t *testing.T) {
+	t.Run("error when exceed pool limit but succeed after release one session", func(t *testing.T) {
+		testDriver := QLDBDriver{
+			ledgerName:                mockLedgerName,
+			qldbSession:               nil,
+			retryLimit:                10,
+			maxConcurrentTransactions: 2,
+			logger:                    mockLogger,
+			isClosed:                  false,
+			semaphore:                 sync2.NewSemaphore(int(2), 0),
+			sessionPool:               make(chan *session, 2),
 		}
 
-		mockSession1 := new(mockQLDBSession)
-		mockSession1.On("SendCommandWithContext", mock.Anything, abortRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
-		testCommunicator := communicator{
-			service:      mockSession1,
-			sessionToken: &mockDriverSessionToken,
-			logger:       mockLogger,
-		}
+		mockSession := new(mockQLDBSession)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)
+		testDriver.qldbSession = mockSession
 
-		session1Retry := uint8(4)
-		session2Retry := uint8(3)
-		session1 := &session{&testCommunicator, session1Retry, mockLogger}
-		session2 := &session{&testCommunicator, session2Retry, mockLogger}
-
-		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.sessionPool <- session1
-		testDriver.sessionPool <- session2
-
-		mockSession2 := new(mockQLDBSession)
-		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
-		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
-
-		mockSession2.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
-		testDriver.qldbSession = mockSession2
-
-		session, err := testDriver.getSession(context.Background())
-
+		session1, err := testDriver.getSession(context.Background())
 		assert.Nil(t, err)
-		assert.Equal(t, mockSession2, session.communicator.service)
-		assert.Equal(t, uint8(10), session.retryLimit)
-	})
+		assert.NotNil(t, session1)
 
-	t.Run("success through new session after failure through existing sessions with non empty pool", func(t *testing.T) {
-		abortTransaction := &qldbsession.AbortTransactionRequest{}
-		abortRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
-		abortRequest.SetSessionToken(mockDriverSessionToken)
-
-		mockSendCommandForSession := qldbsession.SendCommandOutput{
-			AbortTransaction:  &mockAbortTransaction,
-			CommitTransaction: &mockCommitTransaction,
-			EndSession:        &mockEndSession,
-			ExecuteStatement:  &mockExecuteStatement,
-			FetchPage:         &mockFetchPage,
-			StartSession:      &mockStartSession,
-			StartTransaction:  &mockStartTransactionWithID,
-		}
-
-		mockSession1 := new(mockQLDBSession)
-		mockSession1.On("SendCommandWithContext", mock.Anything, abortRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
-
-		mockSession2 := new(mockQLDBSession)
-		mockSession2.On("SendCommandWithContext", mock.Anything, abortRequest, mock.Anything).Return(&mockSendCommandForSession, mockError)
-
-		testCommunicator1 := communicator{
-			service:      mockSession1,
-			sessionToken: &mockDriverSessionToken,
-			logger:       mockLogger,
-		}
-
-		testCommunicator2 := communicator{
-			service:      mockSession2,
-			sessionToken: &mockDriverSessionToken,
-			logger:       mockLogger,
-		}
-
-		session1Retry := uint8(4)
-		session2Retry := uint8(3)
-		session1 := &session{&testCommunicator1, session1Retry, mockLogger}
-		session2 := &session{&testCommunicator2, session2Retry, mockLogger}
-
-		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.sessionPool <- session1
-		testDriver.sessionPool <- session2
-
-		session, err := testDriver.getSession(context.Background())
-
+		session2, err := testDriver.getSession(context.Background())
 		assert.Nil(t, err)
-		assert.Equal(t, mockSession2, session.communicator.service)
-		assert.Equal(t, session2Retry, session.retryLimit)
+		assert.NotNil(t, session2)
+
+		session3, err := testDriver.getSession(context.Background())
+		assert.NotNil(t, err)
+		assert.Nil(t, session3)
+		qldbErr := err.(*QLDBDriverError)
+		assert.NotNil(t, qldbErr)
+
+		testDriver.releaseSession(session1)
+
+		session4, err := testDriver.getSession(context.Background())
+		assert.Nil(t, err)
+		assert.NotNil(t, session4)
+
+		testDriver.Close(context.Background())
 	})
 }
 

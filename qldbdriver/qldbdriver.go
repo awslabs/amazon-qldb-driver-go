@@ -25,8 +25,6 @@ import (
 	"github.com/youtube/vitess/go/sync2"
 )
 
-const poolTimeoutDefault = time.Duration(10) * time.Second
-
 //DriverOptions can be used to configure the driver during construction
 type DriverOptions struct {
 	_                         struct{}
@@ -65,7 +63,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	qldbSDKRetries := 0
 	qldbSession.Client.Config.MaxRetries = &qldbSDKRetries
 
-	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), poolTimeoutDefault)
+	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), 0)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
 
@@ -176,7 +174,7 @@ func (driver *QLDBDriver) Close(ctx context.Context) {
 
 func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
 	driver.logger.log(fmt.Sprint("Getting session. Existing sessions available:", len(driver.sessionPool)), LogDebug)
-	isPermitAcquired := driver.semaphore.Acquire()
+	isPermitAcquired := driver.semaphore.TryAcquire()
 	if isPermitAcquired {
 		defer func(driver *QLDBDriver) {
 			if r := recover(); r != nil {
