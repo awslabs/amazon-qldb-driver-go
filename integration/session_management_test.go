@@ -16,7 +16,15 @@
 package integration
 
 import (
+	"context"
+	"qldbdriver/qldbdriver"
 	"testing"
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestSessionManagement(t *testing.T) {
@@ -26,24 +34,74 @@ func TestSessionManagement(t *testing.T) {
 	testbase.createLedger(t)
 
 	t.Run("Fail connecting to non existent ledger", func(t *testing.T) {
+		driver := testbase.getDriver("NoSuchALedger", 10, 4)
+
+		_, err := driver.GetTableNames(context.Background())
+
+		assert.NotNil(t, err)
+		awsErr, ok := err.(awserr.Error)
+		assert.True(t, ok)
+		assert.Equal(t, qldbsession.ErrCodeBadRequestException, awsErr.Code())
+
+		driver.Close(context.Background())
 	})
 
 	t.Run("Get session when pool doesnt have session and has not hit limit", func(t *testing.T) {
+		driver := testbase.getDriver(ledger, 10, 4)
+
+		result, err := driver.GetTableNames(context.Background())
+
+		assert.Nil(t, err)
+		assert.NotNil(t, result)
+
+		driver.Close(context.Background())
 	})
 
 	t.Run("Get session when pool has session and has not hit limit", func(t *testing.T) {
+		driver := testbase.getDriver(ledger, 10, 4)
+
+		result, err := driver.GetTableNames(context.Background())
+
+		assert.Nil(t, err)
+		assert.NotNil(t, result)
+
+		result, err = driver.GetTableNames(context.Background())
+
+		assert.Nil(t, err)
+		assert.NotNil(t, result)
+
+		driver.Close(context.Background())
 	})
 
 	t.Run("Get session when pool doesnt have session and has hit limit", func(t *testing.T) {
-	})
+		driver := testbase.getDriver(ledger, 1, 4)
 
-	t.Run("Get session when pool doesnt have session and has hit limit", func(t *testing.T) {
-	})
+		errs, ctx := errgroup.WithContext(context.Background())
 
-	t.Run("Get session when pool does not have session and has hit limit and session is returned to pool", func(t *testing.T) {
+		for i := 0; i < 3; i++ {
+			errs.Go(func() error {
+				testbase.logger.log("start "+string(i), LogInfo)
+				_, err := driver.GetTableNames(ctx)
+				time.Sleep(1 * time.Second)
+				testbase.logger.log("end "+string(i), LogInfo)
+				return err
+			})
+		}
+
+		err := errs.Wait()
+		assert.NotNil(t, err)
+		driverErr, ok := err.(*qldbdriver.QLDBDriverError)
+		assert.True(t, ok)
+		assert.NotNil(t, driverErr)
+
+		driver.Close(context.Background())
 	})
 
 	t.Run("Get session when driver is closed", func(t *testing.T) {
+		driver := testbase.getDriver(ledger, 1, 4)
+		driver.Close(context.Background())
+
+		assert.Panics(t, func() { driver.GetTableNames(context.Background()) })
 	})
 
 	//cleanup
