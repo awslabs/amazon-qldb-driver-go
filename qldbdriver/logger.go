@@ -15,15 +15,20 @@ package qldbdriver
 
 import "log"
 
+// Interface for a logger that can be used with QLDBDriver.
 type Logger interface {
 	Log(message string)
 }
 
+// LogLevel represents the valid logging verbosity levels.
 type LogLevel uint8
 
 const (
+	// Log nothing.
 	LogOff LogLevel = iota
+	// Log informative events. This is the default logging level.
 	LogInfo
+	// Log information useful for closely tracing the operation of the QLDBDriver.
 	LogDebug
 )
 
@@ -47,6 +52,7 @@ func (qldbLogger *qldbLogger) log(message string, verbosityLevel LogLevel) {
 
 type defaultLogger struct{}
 
+// Log the message using the built-in Golang logging package.
 func (logger defaultLogger) Log(message string) {
 	log.Println(message)
 }

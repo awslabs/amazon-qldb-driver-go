@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
 
+// Transaction represents an active QLDB transaction.
 type Transaction interface {
 	Execute(statement string, parameters ...interface{}) (*Result, error)
 	BufferResult(result *Result) (*BufferedResult, error)
@@ -82,10 +83,12 @@ type transactionExecutor struct {
 	txn *transaction
 }
 
+// Execute a statement with any parameters within this transaction.
 func (executor *transactionExecutor) Execute(statement string, parameters ...interface{}) (*Result, error) {
 	return executor.txn.execute(executor.ctx, statement, parameters...)
 }
 
+// Buffer a Result into a BufferedResult to use outside the context of this transaction.
 func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
 	for result.HasNext() {
@@ -98,6 +101,7 @@ func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResu
 	return &BufferedResult{bufferedResults, 0}, nil
 }
 
+// Abort the transaction, discarding any previous statement executions within this transaction.
 func (executor *transactionExecutor) Abort() error {
 	_, _ = executor.txn.communicator.abortTransaction(executor.ctx)
 	return errors.New("transaction aborted")

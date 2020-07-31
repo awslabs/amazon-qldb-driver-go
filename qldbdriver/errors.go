@@ -17,11 +17,12 @@ import (
 	"fmt"
 )
 
-//QLDBDriverError is the custom error returned by the QLDB Driver
+// QLDBDriverError is returned when an error caused by QLDBDriver has occurred.
 type QLDBDriverError struct {
 	errorMessage string
 }
 
+// Return the message denoting the cause of the error.
 func (e *QLDBDriverError) Error() string {
 	return e.errorMessage
 }
@@ -32,6 +33,7 @@ type txnError struct {
 	err           error
 }
 
+// Return the message denoting the cause of the error.
 func (e *txnError) Error() string {
 	msg := e.message
 
