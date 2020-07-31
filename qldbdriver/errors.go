@@ -26,13 +26,6 @@ func (e *QLDBDriverError) Error() string {
 	return e.errorMessage
 }
 
-// TransactionError is the custom error of a QLDB transaction
-type TransactionError interface {
-	error
-	Message() string
-	TransactionID() string
-}
-
 type txnError struct {
 	transactionID string
 	message       string
@@ -52,15 +45,6 @@ func (e *txnError) Error() string {
 	return msg
 }
 
-func (e *txnError) String() string {
-	return e.Error()
-}
-
-//TransactionID returns the transaction ID associated with this error
-func (e *txnError) TransactionID() string {
-	return e.transactionID
-}
-
-func (e *txnError) Unwrap() error {
+func (e *txnError) unwrap() error {
 	return e.err
 }
