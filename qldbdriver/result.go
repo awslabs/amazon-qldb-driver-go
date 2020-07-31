@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
 
+// Result is a cursor over a result set from a QLDB statement.
 type Result struct {
 	ctx          context.Context
 	communicator *communicator
@@ -30,10 +31,15 @@ type Result struct {
 	logger       *qldbLogger
 }
 
+// Return whether or not there is another row to read in the current result set.
 func (result *Result) HasNext() bool {
 	return result.index < len(result.pageValues) || result.pageToken != nil
 }
 
+// Return the next row of data in the current result set. Returns an error if there are no more rows.
+//
+// The returned data is in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
+// See https://github.com/amzn/ion-go for more information.
 func (result *Result) Next(txn Transaction) ([]byte, error) {
 	if !result.HasNext() {
 		return nil, errors.New("no more values")
@@ -61,15 +67,21 @@ func (result *Result) getNextPage() error {
 	return nil
 }
 
+// BufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
 type BufferedResult struct {
 	values [][]byte
 	index  int
 }
 
+// Return whether or not there is another row to read in the current result set.
 func (result *BufferedResult) HasNext() bool {
 	return result.index < len(result.values)
 }
 
+// Return the next row of data in the current result set. Returns an error if there are no more rows.
+//
+// The returned data is in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
+// See https://github.com/amzn/ion-go for more information.
 func (result *BufferedResult) Next() ([]byte, error) {
 	if !result.HasNext() {
 		return nil, errors.New("no more values")

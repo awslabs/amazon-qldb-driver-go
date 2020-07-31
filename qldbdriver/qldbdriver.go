@@ -11,6 +11,7 @@ CONDITIONS OF ANY KIND, either express or implied. See the License for the speci
 and limitations under the License.
 */
 
+// The Golang driver for working with Amazon Quantum Ledger Database.
 package qldbdriver
 
 import (
@@ -25,20 +26,22 @@ import (
 	"github.com/youtube/vitess/go/sync2"
 )
 
-//DriverOptions can be used to configure the driver during construction
+// DriverOptions can be used to configure the driver during construction.
 type DriverOptions struct {
-	_                         struct{}
-	RetryLimit                uint8
+	// The amount of times a transaction will automatically retry upon a recoverable error. Default: 4.
+	RetryLimit uint8
+	// The maximum amount of concurrent transactions this driver will permit. Default: 50.
 	MaxConcurrentTransactions uint16
-	Logger                    Logger
-	LoggerVerbosity           LogLevel
+	// The logger that the driver will use for any logging messages. Default: "log" package.
+	Logger Logger
+	// The verbosity level of the logs that the logger should receive. Default: qldbdriver.LogInfo.
+	LoggerVerbosity LogLevel
 }
 
-//QLDBDriver is used to connect and execute statements and lambdas on QLDB
+// QLDBDriver is used to execute statements against QLDB. Call constructor qldbdriver.New for a valid QLDBDriver.
 type QLDBDriver struct {
-	ledgerName  string
-	qldbSession qldbsessioniface.QLDBSessionAPI
-	// Todo: New retry protocol
+	ledgerName                string
+	qldbSession               qldbsessioniface.QLDBSessionAPI
 	retryLimit                uint8
 	maxConcurrentTransactions uint16
 	logger                    *qldbLogger
@@ -47,14 +50,15 @@ type QLDBDriver struct {
 	sessionPool               chan *session
 }
 
-//New creates a QLDBDriver and verifies the options
+// New creates a QLBDDriver using the parameters and options, and verifies the configuration.
+//
+// Note that qldbSession.Client.Config.MaxRetries will be set to 0. This property should not be modified.
+// DriverOptions.RetryLimit is unrelated to this property, but should be used if it is desired to modify the amount of retires for statement executions.
 func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) *QLDBDriver {
-	// Todo: Change default verbosity to LogInfo
-	options := &DriverOptions{RetryLimit: 4, MaxConcurrentTransactions: 50, Logger: defaultLogger{}, LoggerVerbosity: LogDebug}
+	options := &DriverOptions{4, 50, defaultLogger{}, LogInfo}
 	for _, fn := range fns {
 		fn(options)
 	}
-	// Todo: Verify options are valid after fn
 	if options.MaxConcurrentTransactions < 1 {
 		panic("MaxConcurrentTransactions must be 1 or greater.")
 	}
@@ -71,18 +75,24 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 		semaphore, sessionPool}
 }
 
-//Execute executes the provided function
+// Execute a provided function within the context of a new QLDB transaction.
+//
+// The provided function might be executed more than once.
+// It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	return driver.ExecuteWithRetryPolicy(ctx, fn, RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
 }
 
-//ExecuteWithRetryPolicy executes the provided function with a customized retry policy
+// Execute a provided function within the context of a new QLDB transaction with a custom RetryPolicy.
+//
+// The provided function might be executed more than once.
+// It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(txn Transaction) (interface{}, error), retryPolicy RetryPolicy) (interface{}, error) {
 	if driver.isClosed {
 		panic("Cannot invoke methods on a closed QLDBDriver.")
 	}
 
-	retryAttempted := 0
+	retryAttempt := 0
 
 	for true {
 		session, err := driver.getSession(ctx)
@@ -102,13 +112,12 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 			driver.releaseSession(session)
 
 			if txnErr, ok := err.(*txnError); ok {
-				retryAttempted++
+				if retryAttempt < retryPolicy.MaxRetryLimit {
+					retryAttempt++
+					driver.logger.log(fmt.Sprintf("A recoverable error has occurred. Attempting retry #%d.", retryAttempt), LogInfo)
+					driver.logger.log(fmt.Sprintf("Errored Transaction ID: %s. Error cause: %v", txnErr.transactionID, txnErr), LogDebug)
 
-				if retryAttempted <= retryPolicy.MaxRetryLimit {
-					driver.logger.log(fmt.Sprintf("A recoverable error has occurred in Transaction with ID %s. Attempting retry #%d. Error cause: %v",
-						txnErr.transactionID, retryAttempted, txnErr), LogDebug)
-
-					time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempted: retryAttempted, RetriedError: txnErr}))
+					time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr}))
 					// Retry on TransactionError within retry limit
 					continue
 				}
@@ -129,7 +138,7 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 	return nil, nil
 }
 
-//GetTableNames returns the list of Active tables for the ledger
+// Return a list of the names of active tables in the ledger.
 func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 	const tableNameQuery string = "SELECT name FROM information_schema.user_tables WHERE status = 'ACTIVE'"
 	type tableName struct {
@@ -162,7 +171,7 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 	return executeResult.([]string), nil
 }
 
-//Close closes the driver from usage.
+// Close the driver, cleaning up allocated resources.
 func (driver *QLDBDriver) Close(ctx context.Context) {
 	if driver.isClosed == false {
 		driver.isClosed = true
