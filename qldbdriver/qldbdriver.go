@@ -101,16 +101,21 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 
 			driver.releaseSession(session)
 
-			if txnErr, ok := err.(TransactionError); ok {
+			if txnErr, ok := err.(*txnError); ok {
 				retryAttempted++
 
 				if retryAttempted <= retryPolicy.MaxRetryLimit {
 					driver.logger.log(fmt.Sprintf("A recoverable error has occurred in Transaction with ID %s. Attempting retry #%d. Error cause: %v",
-						txnErr.TransactionID(), retryAttempted, txnErr), LogDebug)
+						txnErr.transactionID, retryAttempted, txnErr), LogDebug)
 
 					time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempted: retryAttempted, RetriedError: txnErr}))
 					// Retry on TransactionError within retry limit
 					continue
+				}
+
+				inner := txnErr.unwrap()
+				if inner != nil {
+					return nil, inner
 				}
 			}
 

@@ -194,11 +194,16 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
 		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		test500error := awserr.New(http.StatusText(http.StatusInternalServerError), "Five Hundred", nil)
+		abortTransaction := &qldbsession.AbortTransactionRequest{}
+		abortTransactionRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
+		abortTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		var testOCCerror = awserr.New(qldbsession.ErrCodeOccConflictException, "OCC", nil)
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandForSession, test500error)
+		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandForSession, testOCCerror)
+		mockSession.On("SendCommandWithContext", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
@@ -218,10 +223,10 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
 
 		assert.Nil(t, result)
-		assert.IsType(t, &txnError{}, err)
-		txnErr, ok := err.(*txnError)
+		awsErr, ok := err.(awserr.Error)
 		assert.True(t, ok)
-		assert.Equal(t, test500error, txnErr.err)
+		assert.Equal(t, testOCCerror, awsErr)
+		mockSession.AssertNumberOfCalls(t, "SendCommandWithContext", 14)
 	})
 
 	t.Run("success execute without retry", func(t *testing.T) {
@@ -269,21 +274,23 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 
 		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mocktxid, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
+		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
 		testISE := awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil)
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
-		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testISE).Once()
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).
+			Return(&mockSendCommandWithTxID, testISE).Times(5)
+		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).
+			Return(&mockSendCommandWithTxID, nil).Once()
 
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
 		testDriver.semaphore = sync2.NewSemaphore(int(10), time.Duration(10)*time.Second)
 
-		const tableNameQuery string = "SELECT name FROM information_schema.user_tables WHERE status = 'ACTIVE'"
 		type tableName struct {
 			Name string `ion:"name"`
 		}
