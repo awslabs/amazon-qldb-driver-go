@@ -14,6 +14,7 @@ package qldbdriver
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -357,6 +358,51 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		awsErr, ok := err.(awserr.Error)
 		assert.True(t, ok)
 		assert.Equal(t, testTxnExpire, awsErr)
+	})
+
+	t.Run("abort transaction on customer error", func(t *testing.T) {
+
+		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
+		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
+
+		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
+
+		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
+		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mocktxid, CommitDigest: hash}
+		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
+		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		abortTransaction := &qldbsession.AbortTransactionRequest{}
+		abortTransactionRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
+		abortTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		customerErr := errors.New("customer error")
+
+		mockSession := new(mockQLDBSession)
+		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
+
+		testDriver.qldbSession = mockSession
+
+		testDriver.sessionPool = make(chan *session, 10)
+		testDriver.semaphore = sync2.NewSemaphore(int(10), time.Duration(10)*time.Second)
+
+		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
+			func(txn Transaction) (interface{}, error) {
+				return nil, customerErr
+			},
+			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+
+		assert.Nil(t, result)
+		assert.NotNil(t, err)
+		assert.Equal(t, customerErr, err)
+
+		mockSession.AssertNumberOfCalls(t, "SendCommandWithContext", 3)
 	})
 
 	t.Run("success execute with retry on ISE and 500", func(t *testing.T) {
