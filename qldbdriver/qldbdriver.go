@@ -135,6 +135,7 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 				}
 			}
 
+			session.communicator.abortTransaction(ctx)
 			return nil, err
 		}
 
