@@ -17,6 +17,7 @@ package qldbdriver
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/amzn/ion-go/ion"
@@ -104,6 +105,12 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 		if err != nil {
 			if iseErr, ok := err.(awserr.Error); ok && iseErr.Code() == qldbsession.ErrCodeInvalidSessionException {
 				driver.semaphore.Release()
+
+				// If it is transaction expiry, return the error immediately
+				match, _ := regexp.MatchString("Transaction\\s.*\\shas\\sexpired", iseErr.Message())
+				if match {
+					return nil, iseErr
+				}
 
 				// Unlimited retry on InvalidSessionException
 				continue
