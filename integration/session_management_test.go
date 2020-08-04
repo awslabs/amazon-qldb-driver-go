@@ -29,12 +29,12 @@ import (
 
 func TestSessionManagement(t *testing.T) {
 	//setup
-	testbase := createTestBase()
-	testbase.deleteLedger(t)
-	testbase.createLedger(t)
+	testBase := createTestBase()
+	testBase.deleteLedger(t)
+	testBase.createLedger(t)
 
 	t.Run("Fail connecting to non existent ledger", func(t *testing.T) {
-		driver := testbase.getDriver("NoSuchALedger", 10, 4)
+		driver := testBase.getDriver("NoSuchALedger", 10, 4)
 
 		_, err := driver.GetTableNames(context.Background())
 
@@ -47,7 +47,7 @@ func TestSessionManagement(t *testing.T) {
 	})
 
 	t.Run("Get session when pool doesnt have session and has not hit limit", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 
 		result, err := driver.GetTableNames(context.Background())
 
@@ -58,7 +58,7 @@ func TestSessionManagement(t *testing.T) {
 	})
 
 	t.Run("Get session when pool has session and has not hit limit", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 
 		result, err := driver.GetTableNames(context.Background())
 
@@ -74,16 +74,16 @@ func TestSessionManagement(t *testing.T) {
 	})
 
 	t.Run("Get session when pool doesnt have session and has hit limit", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 1, 4)
+		driver := testBase.getDriver(ledger, 1, 4)
 
 		errs, ctx := errgroup.WithContext(context.Background())
 
 		for i := 0; i < 3; i++ {
 			errs.Go(func() error {
-				testbase.logger.log("start "+string(i), LogInfo)
+				testBase.logger.log("start "+string(i), LogInfo)
 				_, err := driver.GetTableNames(ctx)
 				time.Sleep(1 * time.Second)
-				testbase.logger.log("end "+string(i), LogInfo)
+				testBase.logger.log("end "+string(i), LogInfo)
 				return err
 			})
 		}
@@ -98,12 +98,12 @@ func TestSessionManagement(t *testing.T) {
 	})
 
 	t.Run("Get session when driver is closed", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 1, 4)
+		driver := testBase.getDriver(ledger, 1, 4)
 		driver.Close(context.Background())
 
 		assert.Panics(t, func() { driver.GetTableNames(context.Background()) })
 	})
 
 	//cleanup
-	testbase.deleteLedger(t)
+	testBase.deleteLedger(t)
 }
