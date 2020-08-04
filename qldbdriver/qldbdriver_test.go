@@ -102,16 +102,19 @@ func TestExecute(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-			innerResult, innerErr := txn.Execute("SELECT * FROM someTable")
-			if innerErr != nil {
-				return nil, innerErr
-			}
-			return innerResult, innerErr
-		})
-		assert.Equal(t, err, mockError)
-		assert.Nil(t, result)
+			
+                        //Note : We are using a select * without specifying a where condition for the purpose of this test.
+                        //       However, we do not recommend using such a query in a normal/production context.
+                        innerResult, innerErr := txn.Execute("SELECT * FROM someTable")
+                        if innerErr != nil {
+                            return nil, innerErr
+                        }
+                        return innerResult, innerErr
+                })
+                assert.Equal(t, err, mockError)
+                assert.Nil(t, result)
 
-	})
+        })
 
 	t.Run("success", func(t *testing.T) {
 		mocktables := make([]string, 1)
