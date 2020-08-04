@@ -45,26 +45,16 @@ func cleanup(driver *qldbdriver.QLDBDriver, testTableName string) {
 
 func TestStatementExecution(t *testing.T) {
 	//setup
-	testbase := createTestBase()
-	testbase.deleteLedger(t)
-	testbase.createLedger(t)
+	testBase := createTestBase()
+	testBase.deleteLedger(t)
+	testBase.createLedger(t)
 
-	const (
-		testTableName          = "GoIntegrationTestTable"
-		indexAttribute         = "Name"
-		columnName             = "Name"
-		singleDocumentValue    = "SingleDocumentValue"
-		multipleDocumentValue1 = "MultipleDocumentValue1"
-		multipleDocumentValue2 = "MultipleDocumentValue2"
-	)
-
-	qldbDriver := testbase.getDriver(ledger, 10, 4)
+	qldbDriver := testBase.getDriver(ledger, 10, 4)
 	qldbDriver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
 		return txn.Execute(fmt.Sprintf("CREATE TABLE %s", testTableName))
 	})
 
-	var executeWithParam func(ctx context.Context, query string, txn qldbdriver.Transaction, parameters ...interface{}) (interface{}, error)
-	executeWithParam = func(ctx context.Context, query string, txn qldbdriver.Transaction, parameters ...interface{}) (interface{}, error) {
+	executeWithParam := func(ctx context.Context, query string, txn qldbdriver.Transaction, parameters ...interface{}) (interface{}, error) {
 		result, err := txn.Execute(query, parameters...)
 		if err != nil {
 			return nil, err
@@ -81,7 +71,7 @@ func TestStatementExecution(t *testing.T) {
 	}
 
 	t.Run("Drop existing table", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 
 		createTableName := "GoIntegrationTestCreateTable"
@@ -107,7 +97,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("List tables", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -117,7 +107,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Create table that exists", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -133,7 +123,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Create index", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -172,7 +162,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Return empty when no records found", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -185,7 +175,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Insert document", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -228,7 +218,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Query table enclosed in quotes", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -271,7 +261,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Insert multiple documents", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -319,7 +309,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Delete single document", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -367,7 +357,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Delete all documents", func(t *testing.T) {
-		driver := testbase.getDriver(ledger, 10, 4)
+		driver := testBase.getDriver(ledger, 10, 4)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -421,7 +411,7 @@ func TestStatementExecution(t *testing.T) {
 		type TestTable struct {
 			Name string `ion:"Name"`
 		}
-		driver2 := testbase.getDriver(ledger, 10, 0)
+		driver2 := testBase.getDriver(ledger, 10, 0)
 		record := TestTable{"dummy"}
 
 		insertQuery := fmt.Sprintf("INSERT INTO %s ?", testTableName)
@@ -447,7 +437,7 @@ func TestStatementExecution(t *testing.T) {
 
 	t.Run("Insert and read Ion types", func(t *testing.T) {
 		t.Run("struct", func(t *testing.T) {
-			driver := testbase.getDriver(ledger, 10, 4)
+			driver := testBase.getDriver(ledger, 10, 4)
 			defer driver.Close(context.Background())
 			defer cleanup(driver, testTableName)
 
@@ -492,7 +482,7 @@ func TestStatementExecution(t *testing.T) {
 
 		testInsertCommon := func(testName, inputQuery, searchQuery string, parameterValue, ionReceiver, parameter interface{}) {
 			t.Run(testName, func(t *testing.T) {
-				driver := testbase.getDriver(ledger, 10, 4)
+				driver := testBase.getDriver(ledger, 10, 4)
 				defer driver.Close(context.Background())
 				defer cleanup(driver, testTableName)
 
@@ -633,7 +623,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Update Ion types", func(t *testing.T) {
-		updateDriver := testbase.getDriver(ledger, 10, 4)
+		updateDriver := testBase.getDriver(ledger, 10, 4)
 
 		type TestTable struct {
 			Name int `ion:"Name"`
@@ -647,9 +637,8 @@ func TestStatementExecution(t *testing.T) {
 
 		testUpdateCommon := func(testName, inputQuery, searchQuery string, parameterValue, ionReceiver, parameter interface{}) {
 			t.Run(testName, func(t *testing.T) {
-				driver := testbase.getDriver(ledger, 10, 4)
+				driver := testBase.getDriver(ledger, 10, 4)
 				defer driver.Close(context.Background())
-				//defer cleanup(driver, testTableName)
 
 				executeResult, executeErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
 					return executeWithParam(context.Background(), inputQuery, txn, parameter)
@@ -767,7 +756,7 @@ func TestStatementExecution(t *testing.T) {
 		)
 
 		t.Run("nil", func(t *testing.T) {
-			driver := testbase.getDriver(ledger, 10, 4)
+			driver := testBase.getDriver(ledger, 10, 4)
 			defer driver.Close(context.Background())
 
 			query := fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName)
@@ -800,7 +789,7 @@ func TestStatementExecution(t *testing.T) {
 		})
 
 		t.Run("struct", func(t *testing.T) {
-			driver := testbase.getDriver(ledger, 10, 4)
+			driver := testBase.getDriver(ledger, 10, 4)
 			defer driver.Close(context.Background())
 			defer cleanup(driver, testTableName)
 
@@ -853,5 +842,5 @@ func TestStatementExecution(t *testing.T) {
 
 	//teardown
 	qldbDriver.Close(context.Background())
-	testbase.deleteLedger(t)
+	testBase.deleteLedger(t)
 }
