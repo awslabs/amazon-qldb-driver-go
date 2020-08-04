@@ -44,6 +44,7 @@ type QLDBDriver struct {
 	ledgerName                string
 	qldbSession               qldbsessioniface.QLDBSessionAPI
 	retryLimit                uint8
+	iseRetryLimit             uint16
 	maxConcurrentTransactions uint16
 	logger                    *qldbLogger
 	isClosed                  bool
@@ -71,8 +72,9 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), 0)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
+	iseRetryLimit := options.MaxConcurrentTransactions + 3
 
-	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
+	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, iseRetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
 		semaphore, sessionPool}
 }
 
@@ -94,6 +96,7 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 	}
 
 	retryAttempt := 0
+	var iseRetryAttempt uint16 = 0
 
 	for true {
 		session, err := driver.getSession(ctx)
@@ -106,13 +109,18 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 			if iseErr, ok := err.(awserr.Error); ok && iseErr.Code() == qldbsession.ErrCodeInvalidSessionException {
 				driver.semaphore.Release()
 
+				if iseRetryAttempt >= driver.iseRetryLimit {
+					return nil, iseErr
+				}
+
 				// If it is transaction expiry, return the error immediately
 				match, _ := regexp.MatchString("Transaction\\s.*\\shas\\sexpired", iseErr.Message())
 				if match {
 					return nil, iseErr
 				}
 
-				// Unlimited retry on InvalidSessionException
+				// Retry on InvalidSessionException
+				iseRetryAttempt++
 				continue
 			}
 
