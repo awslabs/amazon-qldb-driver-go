@@ -62,6 +62,7 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, createdDriver.ledgerName, mockLedgerName)
 		assert.Equal(t, createdDriver.maxConcurrentTransactions, defaultMaxConcurrentTransactions)
 		assert.Equal(t, createdDriver.retryLimit, defaultRetry)
+		assert.Equal(t, createdDriver.iseRetryLimit, uint16(defaultMaxConcurrentTransactions+3))
 		assert.Equal(t, createdDriver.isClosed, false)
 		assert.Equal(t, cap(createdDriver.sessionPool), int(defaultMaxConcurrentTransactions))
 		assert.Equal(t, createdDriver.qldbSession, qldbSession)
@@ -74,6 +75,7 @@ func TestExecute(t *testing.T) {
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
 		retryLimit:                10,
+		iseRetryLimit:             13,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
@@ -143,6 +145,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
 		retryLimit:                10,
+		iseRetryLimit:             13,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
@@ -311,6 +314,55 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
+	t.Run("ISE returned when exceed ISE retry limit", func(t *testing.T) {
+
+		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
+		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
+
+		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
+
+		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
+		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mocktxid, CommitDigest: hash}
+		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
+		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		testISE := awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil)
+
+		mockSession := new(mockQLDBSession)
+		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).
+			Return(&mockSendCommandWithTxID, testISE)
+
+		testDriver.qldbSession = mockSession
+
+		testDriver.sessionPool = make(chan *session, 10)
+		testDriver.semaphore = sync2.NewSemaphore(int(10), time.Duration(10)*time.Second)
+
+		type tableName struct {
+			Name string `ion:"name"`
+		}
+
+		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
+			func(txn Transaction) (interface{}, error) {
+				tableNames := make([]string, 1)
+				tableNames = append(tableNames, "table1")
+				return tableNames, nil
+			},
+			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+
+		assert.Nil(t, result)
+		assert.NotNil(t, err)
+
+		awsErr, ok := err.(awserr.Error)
+		assert.True(t, ok)
+		assert.Equal(t, testISE, awsErr)
+	})
+
 	t.Run("error on transaction expiry.", func(t *testing.T) {
 
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
@@ -465,6 +517,7 @@ func TestGetTableNames(t *testing.T) {
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
 		retryLimit:                10,
+		iseRetryLimit:             13,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
@@ -532,6 +585,7 @@ func TestCloseDriver(t *testing.T) {
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
 		retryLimit:                10,
+		iseRetryLimit:             13,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
@@ -553,6 +607,7 @@ func TestGetSession(t *testing.T) {
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
 		retryLimit:                10,
+		iseRetryLimit:             13,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
@@ -618,6 +673,7 @@ func TestSessionPoolCapacity(t *testing.T) {
 			ledgerName:                mockLedgerName,
 			qldbSession:               nil,
 			retryLimit:                10,
+			iseRetryLimit:             13,
 			maxConcurrentTransactions: 2,
 			logger:                    mockLogger,
 			isClosed:                  false,
@@ -659,6 +715,7 @@ func TestCreateSession(t *testing.T) {
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
 		retryLimit:                10,
+		iseRetryLimit:             13,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
