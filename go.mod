@@ -3,9 +3,9 @@ module qldbdriver
 go 1.14
 
 require (
-	github.com/amzn/ion-go v0.1.0-alpha
-	github.com/amzn/ion-hash-go v0.1.0-alpha
-	github.com/aws/aws-sdk-go v1.33.17
+	github.com/amzn/ion-go v0.1.0-beta
+	github.com/amzn/ion-hash-go v0.1.0-beta
+	github.com/aws/aws-sdk-go v1.33.20
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/google/go-cmp v0.5.1 // indirect
@@ -18,7 +18,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de // indirect
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1 // indirect
+	golang.org/x/sys v0.0.0-20200805065543-0cf7623e9dbd // indirect
 	golang.org/x/text v0.3.3 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
