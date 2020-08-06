@@ -21,8 +21,6 @@ Please see the link below for more detail to install Golang:
 
 ## Getting Started
 
-Please see the [Quickstart guide for the Amazon QLDB Driver for Go](TODO).
-
 First, install the driver using go get:
 
 ```go get github.com/awslabs/amazon-qldb-driver-go/qldbdriver```
