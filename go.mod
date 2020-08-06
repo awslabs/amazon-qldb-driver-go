@@ -1,4 +1,4 @@
-module qldbdriver
+module github.com/awslabs/amazon-qldb-driver-go
 
 go 1.14
 
