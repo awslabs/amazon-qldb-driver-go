@@ -666,10 +666,8 @@ func TestGetSession(t *testing.T) {
 			logger:       mockLogger,
 		}
 
-		session1Retry := uint8(4)
-		session2Retry := uint8(3)
-		session1 := &session{&testCommunicator, session1Retry, mockLogger}
-		session2 := &session{&testCommunicator, session2Retry, mockLogger}
+		session1 := &session{&testCommunicator, mockLogger}
+		session2 := &session{&testCommunicator, mockLogger}
 
 		testDriver.sessionPool <- session1
 		testDriver.sessionPool <- session2
@@ -681,7 +679,6 @@ func TestGetSession(t *testing.T) {
 		session, err := testDriver.getSession(context.Background())
 		assert.Nil(t, err)
 		assert.Equal(t, mockSession, session.communicator.service)
-		assert.Equal(t, session1Retry, session.retryLimit)
 	})
 
 	testDriver.Close(context.Background())

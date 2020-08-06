@@ -24,7 +24,6 @@ import (
 
 type session struct {
 	communicator *communicator
-	retryLimit   uint8
 	logger       *qldbLogger
 }
 
