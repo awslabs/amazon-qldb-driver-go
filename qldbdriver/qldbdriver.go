@@ -237,7 +237,7 @@ func createSession(ctx context.Context, driver *QLDBDriver) (*session, error) {
 		driver.semaphore.Release()
 		return nil, err
 	}
-	return &session{communicator, driver.retryLimit, driver.logger}, nil
+	return &session{communicator, driver.logger}, nil
 }
 
 func (driver *QLDBDriver) releaseSession(session *session) {

@@ -36,7 +36,7 @@ func TestSessionStartTransaction(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testStartTransaction, mockError)
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.startTransaction(context.Background())
 
@@ -49,7 +49,7 @@ func TestSessionStartTransaction(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testStartTransaction, nil)
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.startTransaction(context.Background())
 
@@ -70,7 +70,7 @@ func TestSessionEndSession(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testEndSession, mockError)
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		err := session.endSession(context.Background())
 
@@ -82,7 +82,7 @@ func TestSessionEndSession(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testEndSession, nil)
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		err := session.endSession(context.Background())
 
@@ -107,7 +107,7 @@ func TestSessionExecute(t *testing.T) {
 			Return(&testCommit, nil).Once()
 		testCommunicator.service = mockSession
 
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -126,7 +126,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testStartTransaction, mockError)
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -145,7 +145,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testStartTransaction, testISE)
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -164,7 +164,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testStartTransaction, test500)
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -189,7 +189,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testExecute, mockError).Once()
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -210,7 +210,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testExecute, testISE).Once()
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -231,7 +231,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testExecute, test500).Once()
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -256,7 +256,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testExecute, testBadReq).Once()
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -279,7 +279,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testCommit, mockError).Once()
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -302,7 +302,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testCommit, test500).Once()
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
@@ -329,7 +329,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testCommit, testOCC).Once()
 		testCommunicator.service = mockSession
-		session := session{&testCommunicator, 3, mockLogger}
+		session := session{&testCommunicator, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err := txn.Execute("SELECT v FROM table")
