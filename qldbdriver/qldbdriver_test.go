@@ -68,6 +68,23 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, createdDriver.qldbSession, qldbSession)
 		assert.Equal(t, 0, *qldbSession.Client.Config.MaxRetries)
 	})
+
+	t.Run("Retry limit overflow handled", func(t *testing.T) {
+		awsSession := sdksession.Must(sdksession.NewSession())
+		qldbSession := qldbsession.New(awsSession)
+		initialRetries := 4
+		qldbSession.Client.Config.MaxRetries = &initialRetries
+
+		createdDriver := New(mockLedgerName,
+			qldbSession,
+			func(options *DriverOptions) {
+				options.LoggerVerbosity = LogOff
+				options.MaxConcurrentTransactions = 65534
+			})
+
+		assert.Equal(t, uint16(65534), createdDriver.maxConcurrentTransactions)
+		assert.Equal(t, uint16(65535), createdDriver.iseRetryLimit)
+	})
 }
 
 func TestExecute(t *testing.T) {
@@ -102,19 +119,19 @@ func TestExecute(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-			
-                        //Note : We are using a select * without specifying a where condition for the purpose of this test.
-                        //       However, we do not recommend using such a query in a normal/production context.
-                        innerResult, innerErr := txn.Execute("SELECT * FROM someTable")
-                        if innerErr != nil {
-                            return nil, innerErr
-                        }
-                        return innerResult, innerErr
-                })
-                assert.Equal(t, err, mockError)
-                assert.Nil(t, result)
 
-        })
+			//Note : We are using a select * without specifying a where condition for the purpose of this test.
+			//       However, we do not recommend using such a query in a normal/production context.
+			innerResult, innerErr := txn.Execute("SELECT * FROM someTable")
+			if innerErr != nil {
+				return nil, innerErr
+			}
+			return innerResult, innerErr
+		})
+		assert.Equal(t, err, mockError)
+		assert.Nil(t, result)
+
+	})
 
 	t.Run("success", func(t *testing.T) {
 		mocktables := make([]string, 1)

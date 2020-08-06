@@ -72,7 +72,10 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), 0)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
-	iseRetryLimit := options.MaxConcurrentTransactions + 3
+	iseRetryLimit := ^uint16(0)
+	if options.MaxConcurrentTransactions < iseRetryLimit-3 {
+		iseRetryLimit = options.MaxConcurrentTransactions + 3
+	}
 
 	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, iseRetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
 		semaphore, sessionPool}
