@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
@@ -32,40 +33,66 @@ func (session *session) endSession(ctx context.Context) error {
 	return err
 }
 
-func (session *session) execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
+func (session *session) execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, *txnError) {
 	txn, err := session.startTransaction(ctx)
 	if err != nil {
-		return nil, session.translateError(ctx, err, "")
+		return nil, session.wrapError(ctx, err, "")
 	}
 
 	result, err := fn(&transactionExecutor{ctx, txn})
 	if err != nil {
-		return nil, session.translateError(ctx, err, *txn.id)
+		return nil, session.wrapError(ctx, err, *txn.id)
 	}
 
 	err = txn.commit(ctx)
 	if err != nil {
-		return nil, session.translateError(ctx, err, *txn.id)
+		return nil, session.wrapError(ctx, err, *txn.id)
 	}
 
 	return result, nil
 }
 
-func (session *session) translateError(ctx context.Context, err error, transID string) error {
+func (session *session) wrapError(ctx context.Context, err error, transID string) *txnError {
 	if awsErr, ok := err.(awserr.Error); ok {
 		switch awsErr.Code() {
 		case qldbsession.ErrCodeInvalidSessionException:
-			return err
-		case qldbsession.ErrCodeOccConflictException:
-			return &txnError{transactionID: transID, message: "OCC Conflict Exception.", err: awsErr}
-		case http.StatusText(http.StatusInternalServerError), http.StatusText(http.StatusServiceUnavailable):
-			if err != nil {
-				session.logger.log(fmt.Sprintf("Failed to abort the transaction.\nCaused by %v", err), LogDebug)
+			match, _ := regexp.MatchString("Transaction\\s.*\\shas\\sexpired", awsErr.Message())
+			return &txnError{
+				transactionID: transID,
+				message:       "Invalid Session Exception.",
+				err:           awsErr,
+				canRetry:      !match,
+				abortSuccess:  false,
+				isISE:         true,
 			}
-			return &txnError{transactionID: transID, message: "Service unavailable or internal error.", err: awsErr}
+		case qldbsession.ErrCodeOccConflictException:
+			return &txnError{
+				transactionID: transID,
+				message:       "OCC Conflict Exception.",
+				err:           awsErr,
+				canRetry:      true,
+				abortSuccess:  true,
+				isISE:         false,
+			}
+		case http.StatusText(http.StatusInternalServerError), http.StatusText(http.StatusServiceUnavailable):
+			return &txnError{
+				transactionID: transID,
+				message:       "Service unavailable or internal error.",
+				err:           awsErr,
+				canRetry:      true,
+				abortSuccess:  session.tryAbort(ctx),
+				isISE:         false,
+			}
 		}
 	}
-	return err
+	return &txnError{
+		transactionID: transID,
+		message:       "",
+		err:           err,
+		canRetry:      false,
+		abortSuccess:  session.tryAbort(ctx),
+		isISE:         false,
+	}
 }
 
 func (session *session) startTransaction(ctx context.Context) (*transaction, error) {
@@ -80,4 +107,13 @@ func (session *session) startTransaction(ctx context.Context) (*transaction, err
 	}
 
 	return &transaction{session.communicator, result.TransactionId, session.logger, txnHash}, nil
+}
+
+func (session *session) tryAbort(ctx context.Context) bool {
+	_, err := session.communicator.abortTransaction(ctx)
+	if err != nil {
+		session.logger.log(fmt.Sprintf("Failed to abort the transaction.\nCaused by %v", err), LogDebug)
+		return false
+	}
+	return true
 }

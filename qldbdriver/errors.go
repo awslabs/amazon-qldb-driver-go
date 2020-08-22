@@ -13,10 +13,6 @@ and limitations under the License.
 
 package qldbdriver
 
-import (
-	"fmt"
-)
-
 // QLDBDriverError is returned when an error caused by QLDBDriver has occurred.
 type QLDBDriverError struct {
 	errorMessage string
@@ -31,20 +27,9 @@ type txnError struct {
 	transactionID string
 	message       string
 	err           error
-}
-
-// Return the message denoting the cause of the error.
-func (e *txnError) Error() string {
-	msg := e.message
-
-	if e.transactionID != "" {
-		msg = fmt.Sprintf("%s: %s", e.transactionID, msg)
-	}
-
-	if e.err != nil {
-		msg = fmt.Sprintf("%s\ncaused by: %v", msg, e.err)
-	}
-	return msg
+	canRetry      bool
+	abortSuccess  bool
+	isISE         bool
 }
 
 func (e *txnError) unwrap() error {

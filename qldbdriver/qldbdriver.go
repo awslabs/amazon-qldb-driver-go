@@ -17,11 +17,9 @@ package qldbdriver
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/amzn/ion-go/ion"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
 	"github.com/youtube/vitess/go/sync2"
@@ -44,7 +42,6 @@ type QLDBDriver struct {
 	ledgerName                string
 	qldbSession               qldbsessioniface.QLDBSessionAPI
 	retryLimit                uint8
-	iseRetryLimit             uint16
 	maxConcurrentTransactions uint16
 	logger                    *qldbLogger
 	isClosed                  bool
@@ -72,12 +69,8 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), 0)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
-	iseRetryLimit := ^uint16(0)
-	if options.MaxConcurrentTransactions < iseRetryLimit-3 {
-		iseRetryLimit = options.MaxConcurrentTransactions + 3
-	}
 
-	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, iseRetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
+	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
 		semaphore, sessionPool}
 }
 
@@ -99,62 +92,61 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 	}
 
 	retryAttempt := 0
-	var iseRetryAttempt uint16 = 0
+
+	session, err := driver.getSession(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	for true {
-		session, err := driver.getSession(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := session.execute(ctx, fn)
-		if err != nil {
-			if iseErr, ok := err.(awserr.Error); ok && iseErr.Code() == qldbsession.ErrCodeInvalidSessionException {
-				driver.semaphore.Release()
-
-				if iseRetryAttempt >= driver.iseRetryLimit {
-					return nil, iseErr
+		result, txnErr := session.execute(ctx, fn)
+		if txnErr != nil {
+			// If initial session is invalid, always retry once
+			if txnErr.canRetry && txnErr.isISE && retryAttempt == 0 {
+				driver.logger.log("Initial session received from pool invalid. Retrying...", LogDebug)
+				session, err = driver.createSession(ctx)
+				if err != nil {
+					return nil, err
 				}
-
-				// If it is transaction expiry, return the error immediately
-				match, _ := regexp.MatchString("Transaction\\s.*\\shas\\sexpired", iseErr.Message())
-				if match {
-					return nil, iseErr
-				}
-
-				// Retry on InvalidSessionException
-				iseRetryAttempt++
+				retryAttempt++
 				continue
 			}
-
-			driver.releaseSession(session)
-
-			if txnErr, ok := err.(*txnError); ok {
-				if retryAttempt < retryPolicy.MaxRetryLimit {
-					retryAttempt++
-					driver.logger.log(fmt.Sprintf("A recoverable error has occurred. Attempting retry #%d.", retryAttempt), LogInfo)
-					driver.logger.log(fmt.Sprintf("Errored Transaction ID: %s. Error cause: %v", txnErr.transactionID, txnErr), LogDebug)
-
-					time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr}))
-					// Retry on TransactionError within retry limit
-					continue
+			// Do not retry
+			if !txnErr.canRetry || retryAttempt >= retryPolicy.MaxRetryLimit {
+				if txnErr.abortSuccess {
+					driver.releaseSession(session)
+				} else {
+					driver.semaphore.Release()
 				}
-
-				inner := txnErr.unwrap()
-				if inner != nil {
-					return nil, inner
+				return nil, txnErr.unwrap()
+			}
+			// Retry
+			retryAttempt++
+			driver.logger.log(fmt.Sprintf("A recoverable error has occurred. Attempting retry #%d.", retryAttempt), LogInfo)
+			driver.logger.log(fmt.Sprintf("Errored Transaction ID: %s. Error cause: %v", txnErr.transactionID, txnErr), LogDebug)
+			if txnErr.isISE {
+				driver.logger.log("Replacing expired session...", LogDebug)
+				session, err = driver.createSession(ctx)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				if !txnErr.abortSuccess {
+					driver.logger.log("Retrying with a different session...", LogDebug)
+					driver.semaphore.Release()
+					session, err = driver.getSession(ctx)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
-
-			session.communicator.abortTransaction(ctx)
-			return nil, err
+			time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
+			continue
 		}
-
 		driver.releaseSession(session)
 		return result, nil
 	}
-
-	return nil, nil
+	return nil, &QLDBDriverError{"Unexpected error encountered in Execute."}
 }
 
 // Return a list of the names of active tables in the ledger.
@@ -216,21 +208,17 @@ func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
 				panic(r)
 			}
 		}(driver)
-		for len(driver.sessionPool) > 0 {
+		if len(driver.sessionPool) > 0 {
 			session := <-driver.sessionPool
-			_, err := session.communicator.abortTransaction(ctx)
-			if err != nil {
-				driver.logger.log("Reusing session from pool", LogDebug)
-				return session, nil
-			}
-			driver.logger.log("Inactive session discarded", LogDebug)
+			driver.logger.log("Reusing session from pool.", LogDebug)
+			return session, nil
 		}
-		return createSession(ctx, driver)
+		return driver.createSession(ctx)
 	}
-	return nil, &QLDBDriverError{"MaxConcurrentTransactions limit exceeded"}
+	return nil, &QLDBDriverError{"MaxConcurrentTransactions limit exceeded."}
 }
 
-func createSession(ctx context.Context, driver *QLDBDriver) (*session, error) {
+func (driver *QLDBDriver) createSession(ctx context.Context) (*session, error) {
 	driver.logger.log("Creating a new session", LogDebug)
 	communicator, err := startSession(ctx, driver.ledgerName, driver.qldbSession, driver.logger)
 	if err != nil {
