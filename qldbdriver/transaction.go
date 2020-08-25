@@ -55,7 +55,6 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 	}
 	txn.commitHash = txn.commitHash.dot(executeHash)
 
-	// Todo: parameters
 	executeResult, err := txn.communicator.executeStatement(ctx, &statement, valueHolders, txn.id)
 	if err != nil {
 		return nil, err
@@ -103,6 +102,5 @@ func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResu
 
 // Abort the transaction, discarding any previous statement executions within this transaction.
 func (executor *transactionExecutor) Abort() error {
-	_, _ = executor.txn.communicator.abortTransaction(executor.ctx)
 	return errors.New("transaction aborted")
 }

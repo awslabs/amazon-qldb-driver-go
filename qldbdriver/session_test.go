@@ -137,7 +137,7 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err)
+		assert.Equal(t, mockError, err.err)
 	})
 
 	t.Run("startTxnISE", func(t *testing.T) {
@@ -156,7 +156,7 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, testISE, err)
+		assert.Equal(t, testISE, err.err)
 	})
 
 	t.Run("startTxn500", func(t *testing.T) {
@@ -176,10 +176,8 @@ func TestSessionExecute(t *testing.T) {
 
 		assert.Nil(t, result)
 		assert.IsType(t, &txnError{}, err)
-		txnErr, ok := err.(*txnError)
-		assert.True(t, ok)
-		assert.Equal(t, test500, txnErr.err)
-		assert.Equal(t, "", txnErr.transactionID)
+		assert.Equal(t, test500, err.err)
+		assert.Equal(t, "", err.transactionID)
 	})
 
 	t.Run("executeUnknownError", func(t *testing.T) {
@@ -188,6 +186,8 @@ func TestSessionExecute(t *testing.T) {
 			Return(&testStartTransaction, nil).Once()
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testExecute, mockError).Once()
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
+			Return(&testAbortTransaction, nil).Once()
 		testCommunicator.service = mockSession
 		session := session{&testCommunicator, mockLogger}
 
@@ -200,7 +200,8 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err)
+		assert.Equal(t, mockError, err.err)
+		assert.True(t, err.abortSuccess)
 	})
 
 	t.Run("executeISE", func(t *testing.T) {
@@ -209,6 +210,8 @@ func TestSessionExecute(t *testing.T) {
 			Return(&testStartTransaction, nil).Once()
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testExecute, testISE).Once()
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
+			Return(&testAbortTransaction, nil).Once()
 		testCommunicator.service = mockSession
 		session := session{&testCommunicator, mockLogger}
 
@@ -221,7 +224,8 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, testISE, err)
+		assert.Equal(t, testISE, err.err)
+		assert.False(t, err.abortSuccess)
 	})
 
 	t.Run("execute500", func(t *testing.T) {
@@ -230,6 +234,8 @@ func TestSessionExecute(t *testing.T) {
 			Return(&testStartTransaction, nil).Once()
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testExecute, test500).Once()
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
+			Return(&testAbortTransaction, nil).Once()
 		testCommunicator.service = mockSession
 		session := session{&testCommunicator, mockLogger}
 
@@ -243,10 +249,9 @@ func TestSessionExecute(t *testing.T) {
 
 		assert.Nil(t, result)
 		assert.IsType(t, &txnError{}, err)
-		txnErr, ok := err.(*txnError)
-		assert.True(t, ok)
-		assert.Equal(t, test500, txnErr.err)
-		assert.Equal(t, testTxnID, txnErr.transactionID)
+		assert.Equal(t, test500, err.err)
+		assert.Equal(t, testTxnID, err.transactionID)
+		assert.True(t, err.abortSuccess)
 	})
 
 	t.Run("executeBadReq", func(t *testing.T) {
@@ -255,6 +260,8 @@ func TestSessionExecute(t *testing.T) {
 			Return(&testStartTransaction, nil).Once()
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testExecute, testBadReq).Once()
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
+			Return(&testAbortTransaction, nil).Once()
 		testCommunicator.service = mockSession
 		session := session{&testCommunicator, mockLogger}
 
@@ -267,7 +274,8 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, testBadReq, err)
+		assert.Equal(t, testBadReq, err.err)
+		assert.True(t, err.abortSuccess)
 	})
 
 	t.Run("commitUnknownError", func(t *testing.T) {
@@ -278,6 +286,8 @@ func TestSessionExecute(t *testing.T) {
 			Return(&testExecute, nil).Once()
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testCommit, mockError).Once()
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
+			Return(&testAbortTransaction, nil).Once()
 		testCommunicator.service = mockSession
 		session := session{&testCommunicator, mockLogger}
 
@@ -290,7 +300,8 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err)
+		assert.Equal(t, mockError, err.err)
+		assert.True(t, err.abortSuccess)
 	})
 
 	t.Run("commit500", func(t *testing.T) {
@@ -301,6 +312,8 @@ func TestSessionExecute(t *testing.T) {
 			Return(&testExecute, nil).Once()
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
 			Return(&testCommit, test500).Once()
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).
+			Return(&testAbortTransaction, nil).Once()
 		testCommunicator.service = mockSession
 		session := session{&testCommunicator, mockLogger}
 
@@ -314,10 +327,8 @@ func TestSessionExecute(t *testing.T) {
 
 		assert.Nil(t, result)
 		assert.IsType(t, &txnError{}, err)
-		txnErr, ok := err.(*txnError)
-		assert.True(t, ok)
-		assert.Equal(t, test500, txnErr.err)
-		assert.Equal(t, testTxnID, txnErr.transactionID)
+		assert.Equal(t, test500, err.err)
+		assert.Equal(t, testTxnID, err.transactionID)
 	})
 
 	t.Run("commitOCC", func(t *testing.T) {
@@ -345,6 +356,10 @@ func TestSessionExecute(t *testing.T) {
 }
 
 var testTxnID = "testTransactionIdddddd"
+var testAbortTransaction = qldbsession.SendCommandOutput{
+	AbortTransaction: &qldbsession.AbortTransactionResult{},
+}
+
 var testStartTransaction = qldbsession.SendCommandOutput{
 	StartTransaction: &qldbsession.StartTransactionResult{
 		TransactionId: &testTxnID,

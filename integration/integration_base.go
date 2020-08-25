@@ -36,8 +36,8 @@ type testBase struct {
 }
 
 const (
-	ledger 				   = "Gotest"
-	region 				   = "us-east-1"
+	ledger                 = "Gotest"
+	region                 = "us-east-1"
 	testTableName          = "GoIntegrationTestTable"
 	indexAttribute         = "Name"
 	columnName             = "Name"
@@ -45,7 +45,6 @@ const (
 	multipleDocumentValue1 = "MultipleDocumentValue1"
 	multipleDocumentValue2 = "MultipleDocumentValue2"
 )
-
 
 func createTestBase() *testBase {
 	sess, err := session.NewSession(aws.NewConfig().WithRegion(region))

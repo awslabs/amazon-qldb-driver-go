@@ -166,15 +166,15 @@ func TestStatementExecution(t *testing.T) {
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
-                //Note : We are using a select * without specifying a where condition for the purpose of this test.
-                //       However, we do not recommend using such a query in a normal/production context.
-                query := fmt.Sprintf("SELECT * from %s", testTableName)
-                selectRes, selectErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
-                    return executeWithParam(context.Background(), query, txn)
-                })
-                assert.Nil(t, selectErr)
-                assert.Equal(t, 0, selectRes.(int))
-        })
+		// Note : We are using a select * without specifying a where condition for the purpose of this test.
+		//        However, we do not recommend using such a query in a normal/production context.
+		query := fmt.Sprintf("SELECT * from %s", testTableName)
+		selectRes, selectErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+			return executeWithParam(context.Background(), query, txn)
+		})
+		assert.Nil(t, selectErr)
+		assert.Equal(t, 0, selectRes.(int))
+	})
 
 	t.Run("Insert document", func(t *testing.T) {
 		driver := testBase.getDriver(ledger, 10, 4)
