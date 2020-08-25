@@ -22,6 +22,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
 )
 
+type qldbService interface {
+	abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error)
+	commitTransaction(ctx context.Context, txnId *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error)
+	executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnId *string) (*qldbsession.ExecuteStatementResult, error)
+	endSession(context.Context) (*qldbsession.EndSessionResult, error)
+	fetchPage(ctx context.Context, pageToken *string, txnId *string) (*qldbsession.FetchPageResult, error)
+	startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error)
+}
+
 type communicator struct {
 	service      qldbsessioniface.QLDBSessionAPI
 	sessionToken *string

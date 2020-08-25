@@ -24,7 +24,7 @@ import (
 )
 
 type session struct {
-	communicator *communicator
+	communicator qldbService
 	logger       *qldbLogger
 }
 

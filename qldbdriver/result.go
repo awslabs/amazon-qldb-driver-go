@@ -23,7 +23,7 @@ import (
 // Result is a cursor over a result set from a QLDB statement.
 type Result struct {
 	ctx          context.Context
-	communicator *communicator
+	communicator qldbService
 	txnId        *string
 	pageValues   []*qldbsession.ValueHolder
 	pageToken    *string
