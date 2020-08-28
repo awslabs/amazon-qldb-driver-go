@@ -14,6 +14,7 @@ and limitations under the License.
 package qldbdriver
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -35,16 +36,9 @@ func TestResult(t *testing.T) {
 	// Has only one value
 	mockNextPageValues[0] = mockNextValueHolder
 
-	// Mock the AWS SDK
-	testCommunicator := communicator{
-		service:      nil,
-		sessionToken: &mockSessionToken,
-		logger:       mockLogger,
-	}
-
 	result := &Result{
 		ctx:          nil,
-		communicator: &testCommunicator,
+		communicator: nil,
 		txnId:        nil,
 		pageValues:   mockPageValues,
 		pageToken:    nil,
@@ -96,14 +90,13 @@ func TestResult(t *testing.T) {
 			mockToken := "mockToken"
 
 			mockFetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
-			mockFetchPageCommand := qldbsession.SendCommandOutput{FetchPage: &mockFetchPageResult}
 
 			t.Run("success", func(t *testing.T) {
 				result.index = 0
 				result.pageToken = &mockToken
-				mockSession := new(mockQLDBSession)
-				mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageCommand, nil)
-				testCommunicator.service = mockSession
+				mockService := new(mockResultService)
+				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResult, nil)
+				result.communicator = mockService
 
 				// Default page
 				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
@@ -123,9 +116,9 @@ func TestResult(t *testing.T) {
 				result.index = 0
 				result.pageToken = &mockToken
 				result.pageValues = mockPageValues
-				mockSession := new(mockQLDBSession)
-				mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
-				testCommunicator.service = mockSession
+				mockService := new(mockResultService)
+				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResult, mockError)
+				result.communicator = mockService
 
 				// Default page
 				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
@@ -175,4 +168,33 @@ func TestBufferedResult(t *testing.T) {
 		assert.Nil(t, byteSlice)
 		assert.Error(t, err)
 	})
+}
+
+type mockResultService struct {
+	mock.Mock
+}
+
+func (m *mockResultService) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
+	panic("not used")
+}
+
+func (m *mockResultService) commitTransaction(ctx context.Context, txnId *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
+	panic("not used")
+}
+
+func (m *mockResultService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnId *string) (*qldbsession.ExecuteStatementResult, error) {
+	panic("not used")
+}
+
+func (m *mockResultService) endSession(ctx context.Context) (*qldbsession.EndSessionResult, error) {
+	panic("not used")
+}
+
+func (m *mockResultService) fetchPage(ctx context.Context, pageToken *string, txnId *string) (*qldbsession.FetchPageResult, error) {
+	args := m.Called(ctx, pageToken, txnId)
+	return args.Get(0).(*qldbsession.FetchPageResult), args.Error(1)
+}
+
+func (m *mockResultService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
+	panic("not used")
 }
