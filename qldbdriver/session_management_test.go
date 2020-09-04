@@ -13,11 +13,10 @@
  permissions and limitations under the License.
 */
 
-package integration
+package qldbdriver
 
 import (
 	"context"
-	"qldbdriver/qldbdriver"
 	"testing"
 	"time"
 
@@ -27,7 +26,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func TestSessionManagement(t *testing.T) {
+func TestSessionManagementIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	//setup
 	testBase := createTestBase()
 	testBase.deleteLedger(t)
@@ -80,17 +83,17 @@ func TestSessionManagement(t *testing.T) {
 
 		for i := 0; i < 3; i++ {
 			errs.Go(func() error {
-				testBase.logger.log("start "+string(i), LogInfo)
+				testBase.logger.Log("start "+string(i))
 				_, err := driver.GetTableNames(ctx)
 				time.Sleep(1 * time.Second)
-				testBase.logger.log("end "+string(i), LogInfo)
+				testBase.logger.Log("end "+string(i))
 				return err
 			})
 		}
 
 		err := errs.Wait()
 		assert.NotNil(t, err)
-		driverErr, ok := err.(*qldbdriver.QLDBDriverError)
+		driverErr, ok := err.(*QLDBDriverError)
 		assert.True(t, ok)
 		assert.NotNil(t, driverErr)
 

@@ -47,19 +47,23 @@ $ cd amazon-qldb-driver-go
 Changes can now be made in the repository.
 ### Running Tests
 
-All the tests can be run by running the command:
+All the tests can be run by running the following command in the qldbdriver folder. Please make sure to setup and configure an AWS account to run the integration tests.
 ```
-go test -v ./...
-```
-
-The unit tests can be run by moving to the qldbdriver folder and then using the command:
-
-```
-$ go test -v
+go test -v
 ```
 
-Similarly, the integration tests can be run by moving to the integration folder and then using the above command.
-Please make sure to setup and configure an AWS account to run the integration tests.
+To only run the unit tests:
+
+```
+go test -v -short
+```
+
+To only run the integration tests:
+
+```
+go test -run Integration
+```
+
 ## Getting Help
 
 Please use these community resources for getting help.
