@@ -13,16 +13,15 @@
  permissions and limitations under the License.
 */
 
-package integration
+package qldbdriver
 
 import (
 	"fmt"
-	"qldbdriver/qldbdriver"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	AWSSession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/qldb"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +31,7 @@ type testBase struct {
 	qldb       *qldb.QLDB
 	ledgerName *string
 	regionName *string
-	logger     *testLogger
+	logger     Logger
 }
 
 const (
@@ -47,17 +46,17 @@ const (
 )
 
 func createTestBase() *testBase {
-	sess, err := session.NewSession(aws.NewConfig().WithRegion(region))
-	mySession := session.Must(sess, err)
+	sess, err := AWSSession.NewSession(aws.NewConfig().WithRegion(region))
+	mySession := AWSSession.Must(sess, err)
 	qldb := qldb.New(mySession)
-	logger := &testLogger{&defaultLogger{}, LogInfo}
+	logger := defaultLogger{}
 	ledgerName := ledger
 	regionName := region
 	return &testBase{qldb, &ledgerName, &regionName, logger}
 }
 
 func (testBase *testBase) createLedger(t *testing.T) {
-	testBase.logger.log(fmt.Sprint("Creating ledger named ", *testBase.ledgerName, " ..."), LogInfo)
+	testBase.logger.Log(fmt.Sprint("Creating ledger named ", *testBase.ledgerName, " ..."))
 	deletionProtection := false
 	permissions := "ALLOW_ALL"
 	_, err := testBase.qldb.CreateLedger(&qldb.CreateLedgerInput{Name: testBase.ledgerName, DeletionProtection: &deletionProtection, PermissionsMode: &permissions})
@@ -66,43 +65,45 @@ func (testBase *testBase) createLedger(t *testing.T) {
 }
 
 func (testBase *testBase) deleteLedger(t *testing.T) {
-	testBase.logger.log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName), LogInfo)
+	testBase.logger.Log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName))
 	deletionProtection := false
 	testBase.qldb.UpdateLedger(&qldb.UpdateLedgerInput{DeletionProtection: &deletionProtection, Name: testBase.ledgerName})
 	_, err := testBase.qldb.DeleteLedger(&qldb.DeleteLedgerInput{Name: testBase.ledgerName})
 	if err != nil {
 		if _, ok := err.(*qldb.ResourceNotFoundException); ok {
-			testBase.logger.log("Encountered resource not found", LogInfo)
+			testBase.logger.Log("Encountered resource not found")
 			return
 		}
-		testBase.logger.log("Encountered error during deletion", LogInfo)
-		testBase.logger.log(err.Error(), LogInfo)
+		testBase.logger.Log("Encountered error during deletion")
+		testBase.logger.Log(err.Error())
 		t.Errorf("Failing test due to deletion failure")
+		assert.Nil(t, err)
+		return
 	}
 	testBase.waitForDeletion()
 }
 
 func (testBase *testBase) waitForActive() {
-	testBase.logger.log("Waiting for ledger to become active...", LogInfo)
+	testBase.logger.Log("Waiting for ledger to become active...")
 	for true {
 		output, _ := testBase.qldb.DescribeLedger(&qldb.DescribeLedgerInput{Name: testBase.ledgerName})
 		if *output.State == "ACTIVE" {
-			testBase.logger.log("Success. Ledger is active and ready to use.", LogInfo)
+			testBase.logger.Log("Success. Ledger is active and ready to use.")
 			return
 		}
-		testBase.logger.log("The ledger is still creating. Please wait...", LogInfo)
+		testBase.logger.Log("The ledger is still creating. Please wait...")
 		time.Sleep(5 * time.Second)
 	}
 }
 
 func (testBase *testBase) waitForDeletion() {
-	testBase.logger.log("Waiting for ledger to be deleted...", LogInfo)
+	testBase.logger.Log("Waiting for ledger to be deleted...")
 	for true {
 		_, err := testBase.qldb.DescribeLedger(&qldb.DescribeLedgerInput{Name: testBase.ledgerName})
-		testBase.logger.log("The ledger is still deleting. Please wait...", LogInfo)
+		testBase.logger.Log("The ledger is still deleting. Please wait...")
 		if err != nil {
 			if _, ok := err.(*qldb.ResourceNotFoundException); ok {
-				testBase.logger.log("The ledger is deleted", LogInfo)
+				testBase.logger.Log("The ledger is deleted")
 				return
 			}
 		}
@@ -110,13 +111,13 @@ func (testBase *testBase) waitForDeletion() {
 	}
 }
 
-func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions uint16, retryLimit uint8) *qldbdriver.QLDBDriver {
-	driverSession := session.Must(session.NewSession(aws.NewConfig().WithRegion(*testBase.regionName)))
+func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions uint16, retryLimit uint8) *QLDBDriver {
+	driverSession := AWSSession.Must(AWSSession.NewSession(aws.NewConfig().WithRegion(*testBase.regionName)))
 	qldbsession := qldbsession.New(driverSession)
-	return qldbdriver.New(ledgerName, qldbsession, func(options *qldbdriver.DriverOptions) {
-		options.Logger = testBase.logger.logger
-		options.LoggerVerbosity = qldbdriver.LogInfo
+	return New(ledgerName, qldbsession, func(options *DriverOptions) {
+		options.LoggerVerbosity = LogInfo
 		options.MaxConcurrentTransactions = maxConcurrentTransactions
+		options.RetryLimit = retryLimit
 	})
 
 }

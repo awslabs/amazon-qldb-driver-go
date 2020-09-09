@@ -30,7 +30,7 @@ type Transaction interface {
 }
 
 type transaction struct {
-	communicator *communicator
+	communicator qldbService
 	id           *string
 	logger       *qldbLogger
 	commitHash   *qldbHash

@@ -160,7 +160,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
-		semaphore:                 sync2.NewSemaphore(int(10), time.Duration(10)*time.Second),
+		semaphore:                 sync2.NewSemaphore(10, time.Duration(10)*time.Second),
 		sessionPool:               make(chan *session, 10),
 	}
 
@@ -222,7 +222,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.semaphore = sync2.NewSemaphore(int(10), time.Duration(10)*time.Second)
+		testDriver.semaphore = sync2.NewSemaphore(10, time.Duration(10)*time.Second)
 
 		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
 			func(txn Transaction) (interface{}, error) {
@@ -248,7 +248,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.semaphore = sync2.NewSemaphore(int(10), time.Duration(10)*time.Second)
+		testDriver.semaphore = sync2.NewSemaphore(10, time.Duration(10)*time.Second)
 
 		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
 			func(txn Transaction) (interface{}, error) {
@@ -437,7 +437,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.semaphore = sync2.NewSemaphore(int(10), time.Duration(10)*time.Second)
+		testDriver.semaphore = sync2.NewSemaphore(10, time.Duration(10)*time.Second)
 
 		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
 			func(txn Transaction) (interface{}, error) {
@@ -510,7 +510,7 @@ func TestGetTableNames(t *testing.T) {
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
-		semaphore:                 sync2.NewSemaphore(int(10), time.Duration(10)*time.Second),
+		semaphore:                 sync2.NewSemaphore(10, time.Duration(10)*time.Second),
 		sessionPool:               make(chan *session, 10),
 	}
 
@@ -543,10 +543,10 @@ func TestGetTableNames(t *testing.T) {
 			Name string `ion:"name"`
 		}
 
-		ionstruct := &tableName{"table1"}
-		tablebinary, _ := ion.MarshalBinary(&ionstruct)
+		ionStruct := &tableName{"table1"}
+		tableBinary, _ := ion.MarshalBinary(&ionStruct)
 
-		mockValueHolder := &qldbsession.ValueHolder{IonBinary: tablebinary}
+		mockValueHolder := &qldbsession.ValueHolder{IonBinary: tableBinary}
 		mockPageValues := make([]*qldbsession.ValueHolder, 1)
 
 		mockPageValues[0] = mockValueHolder
@@ -621,7 +621,7 @@ func TestGetSession(t *testing.T) {
 		session, err := testDriver.getSession(context.Background())
 
 		assert.Nil(t, err)
-		assert.Equal(t, mockSession, session.communicator.service)
+		assert.Equal(t, &mockSessionToken, session.communicator.(*communicator).sessionToken)
 	})
 
 	t.Run("success through existing session", func(t *testing.T) {
@@ -645,7 +645,7 @@ func TestGetSession(t *testing.T) {
 
 		session, err := testDriver.getSession(context.Background())
 		assert.Nil(t, err)
-		assert.Equal(t, mockSession, session.communicator.service)
+		assert.Equal(t, &mockSessionToken, session.communicator.(*communicator).sessionToken)
 	})
 
 	testDriver.Close(context.Background())
@@ -725,7 +725,7 @@ func TestCreateSession(t *testing.T) {
 		session, err := testDriver.createSession(context.Background())
 
 		assert.Nil(t, err)
-		assert.Equal(t, mockSession, session.communicator.service)
+		assert.Equal(t, &mockSessionToken, session.communicator.(*communicator).sessionToken)
 	})
 }
 

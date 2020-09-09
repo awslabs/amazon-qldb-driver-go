@@ -13,13 +13,12 @@
  permissions and limitations under the License.
 */
 
-package integration
+package qldbdriver
 
 import (
 	"context"
 	"fmt"
 	"math"
-	"qldbdriver/qldbdriver"
 	"reflect"
 	"testing"
 
@@ -37,24 +36,28 @@ func contains(slice []string, val string) bool {
 	return false
 }
 
-func cleanup(driver *qldbdriver.QLDBDriver, testTableName string) {
-	driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+func cleanup(driver *QLDBDriver, testTableName string) {
+	driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 		return txn.Execute(fmt.Sprintf("DELETE FROM %s", testTableName))
 	})
 }
 
 func TestStatementExecution(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	//setup
 	testBase := createTestBase()
 	testBase.deleteLedger(t)
 	testBase.createLedger(t)
 
 	qldbDriver := testBase.getDriver(ledger, 10, 4)
-	qldbDriver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+	qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 		return txn.Execute(fmt.Sprintf("CREATE TABLE %s", testTableName))
 	})
 
-	executeWithParam := func(ctx context.Context, query string, txn qldbdriver.Transaction, parameters ...interface{}) (interface{}, error) {
+	executeWithParam := func(ctx context.Context, query string, txn Transaction, parameters ...interface{}) (interface{}, error) {
 		result, err := txn.Execute(query, parameters...)
 		if err != nil {
 			return nil, err
@@ -77,7 +80,7 @@ func TestStatementExecution(t *testing.T) {
 		createTableName := "GoIntegrationTestCreateTable"
 		createTableQuery := fmt.Sprintf("CREATE TABLE %s", createTableName)
 
-		executeResult, err := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		executeResult, err := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), createTableQuery, txn)
 		})
 		assert.Nil(t, err)
@@ -89,7 +92,7 @@ func TestStatementExecution(t *testing.T) {
 		assert.True(t, contains(tables, createTableName))
 
 		dropTableQuery := fmt.Sprintf("DROP TABLE %s", createTableName)
-		dropResult, droperr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		dropResult, droperr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), dropTableQuery, txn)
 		})
 		assert.Nil(t, droperr)
@@ -113,7 +116,7 @@ func TestStatementExecution(t *testing.T) {
 
 		query := fmt.Sprintf("CREATE TABLE %s", testTableName)
 
-		result, err := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		result, err := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return txn.Execute(query)
 		})
 		assert.Nil(t, result)
@@ -128,7 +131,7 @@ func TestStatementExecution(t *testing.T) {
 		defer cleanup(driver, testTableName)
 
 		indexQuery := fmt.Sprintf("CREATE INDEX ON %s (%s)", testTableName, indexAttribute)
-		indexResult, indexErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		indexResult, indexErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), indexQuery, txn)
 		})
 		assert.Nil(t, indexErr)
@@ -141,7 +144,7 @@ func TestStatementExecution(t *testing.T) {
 			Expr string `ion:"expr"`
 		}
 
-		searchRes, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		searchRes, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			result, err := txn.Execute(searchQuery)
 			if err != nil {
 				return nil, err
@@ -169,7 +172,7 @@ func TestStatementExecution(t *testing.T) {
 		// Note : We are using a select * without specifying a where condition for the purpose of this test.
 		//        However, we do not recommend using such a query in a normal/production context.
 		query := fmt.Sprintf("SELECT * from %s", testTableName)
-		selectRes, selectErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		selectRes, selectErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), query, txn)
 		})
 		assert.Nil(t, selectErr)
@@ -188,7 +191,7 @@ func TestStatementExecution(t *testing.T) {
 		record := TestTable{singleDocumentValue}
 		query := fmt.Sprintf("INSERT INTO %s ?", testTableName)
 
-		insertResult, insertErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		insertResult, insertErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), query, txn, record)
 		})
 
@@ -196,7 +199,7 @@ func TestStatementExecution(t *testing.T) {
 		assert.Equal(t, 1, insertResult.(int))
 
 		searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName)
-		searchResult, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			result, err := txn.Execute(searchQuery, singleDocumentValue)
 			if err != nil {
 				return nil, err
@@ -231,7 +234,7 @@ func TestStatementExecution(t *testing.T) {
 		record := TestTable{singleDocumentValue}
 		query := fmt.Sprintf("INSERT INTO %s ?", testTableName)
 
-		insertResult, insertErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		insertResult, insertErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), query, txn, record)
 		})
 
@@ -239,7 +242,7 @@ func TestStatementExecution(t *testing.T) {
 		assert.Equal(t, 1, insertResult.(int))
 
 		searchQuery := fmt.Sprintf("SELECT VALUE %s FROM \"%s\" WHERE %s = ?", columnName, testTableName, columnName)
-		searchResult, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			result, err := txn.Execute(searchQuery, singleDocumentValue)
 			if err != nil {
 				return nil, err
@@ -275,7 +278,7 @@ func TestStatementExecution(t *testing.T) {
 		record2 := TestTable{multipleDocumentValue2}
 
 		query := fmt.Sprintf("INSERT INTO %s <<?, ?>>", testTableName)
-		insertResult, insertErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		insertResult, insertErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), query, txn, record1, record2)
 		})
 
@@ -283,7 +286,7 @@ func TestStatementExecution(t *testing.T) {
 		assert.Equal(t, 2, insertResult.(int))
 
 		searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s IN (?,?)", columnName, testTableName, columnName)
-		searchResult, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			result, err := txn.Execute(searchQuery, multipleDocumentValue1, multipleDocumentValue2)
 			if err != nil {
 				return nil, err
@@ -321,14 +324,14 @@ func TestStatementExecution(t *testing.T) {
 
 		query := fmt.Sprintf("INSERT INTO %s ?", testTableName)
 		record := TestTable{singleDocumentValue}
-		insertResult, insertErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		insertResult, insertErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), query, txn, record)
 		})
 		assert.Nil(t, insertErr)
 		assert.Equal(t, 1, insertResult.(int))
 
 		deleteQuery := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", testTableName, columnName)
-		deleteResult, deleteErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		deleteResult, deleteErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), deleteQuery, txn, singleDocumentValue)
 		})
 		assert.Nil(t, deleteErr)
@@ -338,7 +341,7 @@ func TestStatementExecution(t *testing.T) {
 		type rowCount struct {
 			Count int `ion:"_1"`
 		}
-		countResult, countErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		countResult, countErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			result, err := txn.Execute(countQuery)
 			if err != nil {
 				return nil, err
@@ -371,7 +374,7 @@ func TestStatementExecution(t *testing.T) {
 		record2 := TestTable{multipleDocumentValue2}
 
 		query := fmt.Sprintf("INSERT INTO %s <<?, ?>>", testTableName)
-		insertResult, insertErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		insertResult, insertErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), query, txn, record1, record2)
 		})
 
@@ -379,7 +382,7 @@ func TestStatementExecution(t *testing.T) {
 		assert.Equal(t, 2, insertResult.(int))
 
 		deleteQuery := fmt.Sprintf("DELETE FROM %s", testTableName)
-		deleteResult, deleteErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		deleteResult, deleteErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), deleteQuery, txn)
 		})
 		assert.Nil(t, deleteErr)
@@ -389,7 +392,7 @@ func TestStatementExecution(t *testing.T) {
 		type rowCount struct {
 			Count int `ion:"_1"`
 		}
-		countResult, countErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		countResult, countErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			result, err := txn.Execute(countQuery)
 			if err != nil {
 				return nil, err
@@ -417,16 +420,16 @@ func TestStatementExecution(t *testing.T) {
 		record := TestTable{"dummy"}
 
 		insertQuery := fmt.Sprintf("INSERT INTO %s ?", testTableName)
-		insertResult, insertErr := driver2.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		insertResult, insertErr := driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), insertQuery, txn, record)
 		})
 		assert.Nil(t, insertErr)
 		assert.Equal(t, insertResult.(int), 1)
 
-		executeResult, err := driver2.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		executeResult, err := driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			txn.Execute(fmt.Sprintf("SELECT VALUE %s FROM %s", columnName, testTableName))
 
-			return driver2.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+			return driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return txn.Execute(fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName), 5)
 			})
 
@@ -454,14 +457,14 @@ func TestStatementExecution(t *testing.T) {
 			parameter := TestTable{parameterValue}
 
 			query := fmt.Sprintf("INSERT INTO %s ?", testTableName)
-			executeResult, executeErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+			executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return executeWithParam(context.Background(), query, txn, parameter)
 			})
 			assert.Nil(t, executeErr)
 			assert.Equal(t, 1, executeResult.(int))
 
 			searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName)
-			searchResult, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+			searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				result, err := txn.Execute(searchQuery, parameterValue)
 				if err != nil {
 					return nil, err
@@ -488,12 +491,12 @@ func TestStatementExecution(t *testing.T) {
 				defer driver.Close(context.Background())
 				defer cleanup(driver, testTableName)
 
-				executeResult, executeErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+				executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					return executeWithParam(context.Background(), inputQuery, txn, parameter)
 				})
 				assert.Nil(t, executeErr)
 				assert.Equal(t, 1, executeResult.(int))
-				searchResult, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+				searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					result, err := txn.Execute(searchQuery, parameterValue)
 					if err != nil {
 						return nil, err
@@ -633,7 +636,7 @@ func TestStatementExecution(t *testing.T) {
 		parameter := TestTable{1}
 
 		insertQuery := fmt.Sprintf("INSERT INTO %s ?", testTableName)
-		updateDriver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		updateDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), insertQuery, txn, parameter)
 		})
 
@@ -642,12 +645,12 @@ func TestStatementExecution(t *testing.T) {
 				driver := testBase.getDriver(ledger, 10, 4)
 				defer driver.Close(context.Background())
 
-				executeResult, executeErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+				executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					return executeWithParam(context.Background(), inputQuery, txn, parameter)
 				})
 				assert.Nil(t, executeErr)
 				assert.Equal(t, 1, executeResult.(int))
-				searchResult, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+				searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					result, err := txn.Execute(searchQuery, parameterValue)
 					if err != nil {
 						return nil, err
@@ -762,14 +765,14 @@ func TestStatementExecution(t *testing.T) {
 			defer driver.Close(context.Background())
 
 			query := fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName)
-			executeResult, executeErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+			executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return executeWithParam(context.Background(), query, txn, nil)
 			})
 			assert.Nil(t, executeErr)
 			assert.Equal(t, 1, executeResult.(int))
 
 			searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s IS NULL", columnName, testTableName, columnName)
-			searchResult, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+			searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				result, err := txn.Execute(searchQuery)
 				if err != nil {
 					return nil, err
@@ -801,14 +804,14 @@ func TestStatementExecution(t *testing.T) {
 			parameterValue := Anon{42, 2}
 
 			query := fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName)
-			executeResult, executeErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+			executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return executeWithParam(context.Background(), query, txn, parameterValue)
 			})
 			assert.Nil(t, executeErr)
 			assert.Equal(t, 1, executeResult.(int))
 
 			searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName)
-			searchResult, searchErr := driver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+			searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				result, err := txn.Execute(searchQuery, parameterValue)
 				if err != nil {
 					return nil, err
@@ -833,7 +836,7 @@ func TestStatementExecution(t *testing.T) {
 
 	t.Run("Delete Table that does not exist", func(t *testing.T) {
 		query := "DELETE FROM NonExistentTable"
-		result, err := qldbDriver.Execute(context.Background(), func(txn qldbdriver.Transaction) (interface{}, error) {
+		result, err := qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return txn.Execute(query)
 		})
 		assert.Nil(t, result)
