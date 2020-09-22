@@ -23,7 +23,7 @@ Please see the link below for more detail to install Golang:
 
 First, ensure your project is using [Go modules](https://blog.golang.org/using-go-modules) to install dependencies in your project.
 
-Install the driver using go get:
+In your project directory, install the driver using go get:
 
 ```go get github.com/awslabs/amazon-qldb-driver-go/qldbdriver```
 
