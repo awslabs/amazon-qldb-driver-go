@@ -41,7 +41,7 @@ func TestStartSession(t *testing.T) {
 		communicator, err := startSession(context.Background(), "ledgerName", mockSession, mockLogger)
 
 		assert.Equal(t, communicator.sessionToken, &mockSessionToken)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -69,7 +69,7 @@ func TestAbortTransaction(t *testing.T) {
 		result, err := testCommunicator.abortTransaction(context.Background())
 
 		assert.Equal(t, result, &mockAbortTransaction)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -97,7 +97,7 @@ func TestCommitTransaction(t *testing.T) {
 		result, err := testCommunicator.commitTransaction(context.Background(), nil, nil)
 
 		assert.Equal(t, result, &mockCommitTransaction)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -125,7 +125,7 @@ func TestExecuteStatement(t *testing.T) {
 		result, err := testCommunicator.executeStatement(context.Background(), nil, nil, nil)
 
 		assert.Equal(t, result, &mockExecuteStatement)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -153,7 +153,7 @@ func TestEndSession(t *testing.T) {
 		result, err := testCommunicator.endSession(context.Background())
 
 		assert.Equal(t, result, &mockEndSession)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -181,7 +181,7 @@ func TestFetchPage(t *testing.T) {
 		result, err := testCommunicator.fetchPage(context.Background(), nil, nil)
 
 		assert.Equal(t, result, &mockFetchPage)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -209,7 +209,7 @@ func TestStartTransaction(t *testing.T) {
 		result, err := testCommunicator.startTransaction(context.Background())
 
 		assert.Equal(t, result, &mockStartTransaction)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 

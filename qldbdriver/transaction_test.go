@@ -47,7 +47,7 @@ func TestTransaction(t *testing.T) {
 			testTransaction.communicator = mockService
 
 			result, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, testTransaction.communicator, result.communicator)
 			assert.Equal(t, testTransaction.id, result.txnId)
@@ -61,8 +61,8 @@ func TestTransaction(t *testing.T) {
 			testTransaction.communicator = mockService
 
 			result, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
+			assert.Error(t, err)
 			assert.Nil(t, result)
-			assert.NotNil(t, err)
 			assert.Equal(t, mockError, err)
 		})
 	})
@@ -90,7 +90,7 @@ func TestTransaction(t *testing.T) {
 			mockService.On("commitTransaction", mock.Anything, mock.Anything, mock.Anything).Return(&mockCommitTransactionResult, nil)
 			testTransaction.communicator = mockService
 
-			assert.Nil(t, testTransaction.commit(context.Background()))
+			assert.NoError(t, testTransaction.commit(context.Background()))
 		})
 
 		t.Run("error", func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestTransactionExecutor(t *testing.T) {
 			mockTransaction.communicator = mockService
 
 			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, mockTransaction.communicator, result.communicator)
 			assert.Equal(t, mockTransaction.id, result.txnId)
@@ -159,8 +159,8 @@ func TestTransactionExecutor(t *testing.T) {
 			mockTransaction.communicator = mockService
 
 			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
+			assert.Error(t, err)
 			assert.Nil(t, result)
-			assert.NotNil(t, err)
 			assert.Equal(t, mockError, err)
 		})
 	})
@@ -199,7 +199,7 @@ func TestTransactionExecutor(t *testing.T) {
 			testResult.communicator = mockService
 
 			bufferedResult, err := testExecutor.BufferResult(&testResult)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			value, _ := bufferedResult.Next()
 			assert.Equal(t, mockIonBinary, value)
 			value, _ = bufferedResult.Next()

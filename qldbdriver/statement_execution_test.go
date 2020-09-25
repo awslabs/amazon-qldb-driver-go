@@ -25,6 +25,7 @@ import (
 	"github.com/amzn/ion-go/ion"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func contains(slice []string, val string) bool {
@@ -52,7 +53,9 @@ func TestStatementExecution(t *testing.T) {
 	testBase.deleteLedger(t)
 	testBase.createLedger(t)
 
-	qldbDriver := testBase.getDriver(ledger, 10, 4)
+	qldbDriver, err := testBase.getDriver(ledger, 10, 4)
+	require.NoError(t, err)
+
 	qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 		return txn.Execute(fmt.Sprintf("CREATE TABLE %s", testTableName))
 	})
@@ -74,7 +77,8 @@ func TestStatementExecution(t *testing.T) {
 	}
 
 	t.Run("Drop existing table", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 
 		createTableName := "GoIntegrationTestCreateTable"
@@ -83,34 +87,36 @@ func TestStatementExecution(t *testing.T) {
 		executeResult, err := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), createTableQuery, txn)
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		actualResult := executeResult.(int)
 		assert.Equal(t, 1, actualResult)
 
 		tables, err := driver.GetTableNames(context.Background())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, contains(tables, createTableName))
 
 		dropTableQuery := fmt.Sprintf("DROP TABLE %s", createTableName)
 		dropResult, droperr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), dropTableQuery, txn)
 		})
-		assert.Nil(t, droperr)
+		assert.NoError(t, droperr)
 		assert.Equal(t, 1, dropResult.(int))
 	})
 
 	t.Run("List tables", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
 		tables, err := driver.GetTableNames(context.Background())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, contains(tables, testTableName))
 	})
 
 	t.Run("Create table that exists", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -119,6 +125,7 @@ func TestStatementExecution(t *testing.T) {
 		result, err := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return txn.Execute(query)
 		})
+		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.IsType(t, &qldbsession.BadRequestException{}, err)
 		_, ok := err.(*qldbsession.BadRequestException)
@@ -126,7 +133,8 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Create index", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -134,7 +142,7 @@ func TestStatementExecution(t *testing.T) {
 		indexResult, indexErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), indexQuery, txn)
 		})
-		assert.Nil(t, indexErr)
+		assert.NoError(t, indexErr)
 		assert.Equal(t, 1, indexResult.(int))
 
 		searchQuery := "SELECT VALUE indexes[0] FROM information_schema.user_tables WHERE status = 'ACTIVE' "
@@ -160,12 +168,13 @@ func TestStatementExecution(t *testing.T) {
 			}
 			return exprStruct.Expr, nil
 		})
-		assert.Nil(t, searchErr)
+		assert.NoError(t, searchErr)
 		assert.Equal(t, fmt.Sprint("[", indexAttribute, "]"), searchRes.(string))
 	})
 
 	t.Run("Return empty when no records found", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -175,12 +184,13 @@ func TestStatementExecution(t *testing.T) {
 		selectRes, selectErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), query, txn)
 		})
-		assert.Nil(t, selectErr)
+		assert.NoError(t, selectErr)
 		assert.Equal(t, 0, selectRes.(int))
 	})
 
 	t.Run("Insert document", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -195,7 +205,7 @@ func TestStatementExecution(t *testing.T) {
 			return executeWithParam(context.Background(), query, txn, record)
 		})
 
-		assert.Nil(t, insertErr)
+		assert.NoError(t, insertErr)
 		assert.Equal(t, 1, insertResult.(int))
 
 		searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName)
@@ -218,12 +228,13 @@ func TestStatementExecution(t *testing.T) {
 			}
 			return nil, nil
 		})
-		assert.Nil(t, searchErr)
+		assert.NoError(t, searchErr)
 		assert.Equal(t, singleDocumentValue, searchResult.(string))
 	})
 
 	t.Run("Query table enclosed in quotes", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -238,7 +249,7 @@ func TestStatementExecution(t *testing.T) {
 			return executeWithParam(context.Background(), query, txn, record)
 		})
 
-		assert.Nil(t, insertErr)
+		assert.NoError(t, insertErr)
 		assert.Equal(t, 1, insertResult.(int))
 
 		searchQuery := fmt.Sprintf("SELECT VALUE %s FROM \"%s\" WHERE %s = ?", columnName, testTableName, columnName)
@@ -261,12 +272,13 @@ func TestStatementExecution(t *testing.T) {
 			}
 			return nil, nil
 		})
-		assert.Nil(t, searchErr)
+		assert.NoError(t, searchErr)
 		assert.Equal(t, singleDocumentValue, searchResult.(string))
 	})
 
 	t.Run("Insert multiple documents", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -282,7 +294,7 @@ func TestStatementExecution(t *testing.T) {
 			return executeWithParam(context.Background(), query, txn, record1, record2)
 		})
 
-		assert.Nil(t, insertErr)
+		assert.NoError(t, insertErr)
 		assert.Equal(t, 2, insertResult.(int))
 
 		searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s IN (?,?)", columnName, testTableName, columnName)
@@ -308,13 +320,14 @@ func TestStatementExecution(t *testing.T) {
 		})
 
 		obtainedResults := searchResult.([]string)
-		assert.Nil(t, searchErr)
+		assert.NoError(t, searchErr)
 		assert.True(t, contains(obtainedResults, multipleDocumentValue1))
 		assert.True(t, contains(obtainedResults, multipleDocumentValue2))
 	})
 
 	t.Run("Delete single document", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -327,14 +340,14 @@ func TestStatementExecution(t *testing.T) {
 		insertResult, insertErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), query, txn, record)
 		})
-		assert.Nil(t, insertErr)
+		assert.NoError(t, insertErr)
 		assert.Equal(t, 1, insertResult.(int))
 
 		deleteQuery := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", testTableName, columnName)
 		deleteResult, deleteErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), deleteQuery, txn, singleDocumentValue)
 		})
-		assert.Nil(t, deleteErr)
+		assert.NoError(t, deleteErr)
 		assert.Equal(t, 1, deleteResult.(int))
 
 		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", testTableName)
@@ -357,12 +370,13 @@ func TestStatementExecution(t *testing.T) {
 			}
 			return countStruct.Count, nil
 		})
-		assert.Nil(t, countErr)
+		assert.NoError(t, countErr)
 		assert.Equal(t, 0, countResult.(int))
 	})
 
 	t.Run("Delete all documents", func(t *testing.T) {
-		driver := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 		defer driver.Close(context.Background())
 		defer cleanup(driver, testTableName)
 
@@ -378,14 +392,14 @@ func TestStatementExecution(t *testing.T) {
 			return executeWithParam(context.Background(), query, txn, record1, record2)
 		})
 
-		assert.Nil(t, insertErr)
+		assert.NoError(t, insertErr)
 		assert.Equal(t, 2, insertResult.(int))
 
 		deleteQuery := fmt.Sprintf("DELETE FROM %s", testTableName)
 		deleteResult, deleteErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), deleteQuery, txn)
 		})
-		assert.Nil(t, deleteErr)
+		assert.NoError(t, deleteErr)
 		assert.Equal(t, 2, deleteResult.(int))
 
 		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", testTableName)
@@ -408,7 +422,7 @@ func TestStatementExecution(t *testing.T) {
 			}
 			return countStruct.Count, nil
 		})
-		assert.Nil(t, countErr)
+		assert.NoError(t, countErr)
 		assert.Equal(t, 0, countResult.(int))
 	})
 
@@ -416,14 +430,15 @@ func TestStatementExecution(t *testing.T) {
 		type TestTable struct {
 			Name string `ion:"Name"`
 		}
-		driver2 := testBase.getDriver(ledger, 10, 0)
+		driver2, err := testBase.getDriver(ledger, 10, 0)
+		require.NoError(t, err)
 		record := TestTable{"dummy"}
 
 		insertQuery := fmt.Sprintf("INSERT INTO %s ?", testTableName)
 		insertResult, insertErr := driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), insertQuery, txn, record)
 		})
-		assert.Nil(t, insertErr)
+		assert.NoError(t, insertErr)
 		assert.Equal(t, insertResult.(int), 1)
 
 		executeResult, err := driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -442,7 +457,8 @@ func TestStatementExecution(t *testing.T) {
 
 	t.Run("Insert and read Ion types", func(t *testing.T) {
 		t.Run("struct", func(t *testing.T) {
-			driver := testBase.getDriver(ledger, 10, 4)
+			driver, err := testBase.getDriver(ledger, 10, 4)
+			require.NoError(t, err)
 			defer driver.Close(context.Background())
 			defer cleanup(driver, testTableName)
 
@@ -460,7 +476,7 @@ func TestStatementExecution(t *testing.T) {
 			executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return executeWithParam(context.Background(), query, txn, parameter)
 			})
-			assert.Nil(t, executeErr)
+			assert.NoError(t, executeErr)
 			assert.Equal(t, 1, executeResult.(int))
 
 			searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName)
@@ -480,21 +496,22 @@ func TestStatementExecution(t *testing.T) {
 				}
 				return ionReceiver, nil
 			})
-			assert.Nil(t, searchErr)
+			assert.NoError(t, searchErr)
 			assert.Equal(t, &parameterValue, searchResult.(*Anon))
 
 		})
 
 		testInsertCommon := func(testName, inputQuery, searchQuery string, parameterValue, ionReceiver, parameter interface{}) {
 			t.Run(testName, func(t *testing.T) {
-				driver := testBase.getDriver(ledger, 10, 4)
+				driver, err := testBase.getDriver(ledger, 10, 4)
+				require.NoError(t, err)
 				defer driver.Close(context.Background())
 				defer cleanup(driver, testTableName)
 
 				executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					return executeWithParam(context.Background(), inputQuery, txn, parameter)
 				})
-				assert.Nil(t, executeErr)
+				assert.NoError(t, executeErr)
 				assert.Equal(t, 1, executeResult.(int))
 				searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					result, err := txn.Execute(searchQuery, parameterValue)
@@ -511,7 +528,7 @@ func TestStatementExecution(t *testing.T) {
 					}
 					return ionReceiver, nil
 				})
-				assert.Nil(t, searchErr)
+				assert.NoError(t, searchErr)
 				switch actualVal := searchResult.(type) {
 				case *bool:
 					if !reflect.DeepEqual(parameterValue, *actualVal) {
@@ -628,7 +645,8 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Update Ion types", func(t *testing.T) {
-		updateDriver := testBase.getDriver(ledger, 10, 4)
+		updateDriver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
 
 		type TestTable struct {
 			Name int `ion:"Name"`
@@ -642,13 +660,14 @@ func TestStatementExecution(t *testing.T) {
 
 		testUpdateCommon := func(testName, inputQuery, searchQuery string, parameterValue, ionReceiver, parameter interface{}) {
 			t.Run(testName, func(t *testing.T) {
-				driver := testBase.getDriver(ledger, 10, 4)
+				driver, err := testBase.getDriver(ledger, 10, 4)
+				require.NoError(t, err)
 				defer driver.Close(context.Background())
 
 				executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					return executeWithParam(context.Background(), inputQuery, txn, parameter)
 				})
-				assert.Nil(t, executeErr)
+				assert.NoError(t, executeErr)
 				assert.Equal(t, 1, executeResult.(int))
 				searchResult, searchErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					result, err := txn.Execute(searchQuery, parameterValue)
@@ -665,7 +684,7 @@ func TestStatementExecution(t *testing.T) {
 					}
 					return ionReceiver, nil
 				})
-				assert.Nil(t, searchErr)
+				assert.NoError(t, searchErr)
 				switch actualVal := searchResult.(type) {
 				case *bool:
 					if !reflect.DeepEqual(parameterValue, *actualVal) {
@@ -761,14 +780,15 @@ func TestStatementExecution(t *testing.T) {
 		)
 
 		t.Run("nil", func(t *testing.T) {
-			driver := testBase.getDriver(ledger, 10, 4)
+			driver, err := testBase.getDriver(ledger, 10, 4)
+			require.NoError(t, err)
 			defer driver.Close(context.Background())
 
 			query := fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName)
 			executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return executeWithParam(context.Background(), query, txn, nil)
 			})
-			assert.Nil(t, executeErr)
+			assert.NoError(t, executeErr)
 			assert.Equal(t, 1, executeResult.(int))
 
 			searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s IS NULL", columnName, testTableName, columnName)
@@ -788,13 +808,14 @@ func TestStatementExecution(t *testing.T) {
 				}
 				return ionReceiver, nil
 			})
-			assert.Nil(t, searchErr)
+			assert.NoError(t, searchErr)
 			assert.Equal(t, searchResult.(string), "")
 
 		})
 
 		t.Run("struct", func(t *testing.T) {
-			driver := testBase.getDriver(ledger, 10, 4)
+			driver, err := testBase.getDriver(ledger, 10, 4)
+			require.NoError(t, err)
 			defer driver.Close(context.Background())
 			defer cleanup(driver, testTableName)
 
@@ -807,7 +828,7 @@ func TestStatementExecution(t *testing.T) {
 			executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return executeWithParam(context.Background(), query, txn, parameterValue)
 			})
-			assert.Nil(t, executeErr)
+			assert.NoError(t, executeErr)
 			assert.Equal(t, 1, executeResult.(int))
 
 			searchQuery := fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName)
@@ -827,9 +848,8 @@ func TestStatementExecution(t *testing.T) {
 				}
 				return ionReceiver, nil
 			})
-			assert.Nil(t, searchErr)
+			assert.NoError(t, searchErr)
 			assert.Equal(t, &parameterValue, searchResult.(*Anon))
-
 		})
 
 	})

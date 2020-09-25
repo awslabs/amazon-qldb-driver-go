@@ -45,31 +45,41 @@ func toQLDBHash(value interface{}) (*qldbHash, error) {
 	return &qldbHash{hash}, nil
 }
 
-func (thisHash *qldbHash) dot(thatHash *qldbHash) *qldbHash {
-	concatenated := joinHashesPairwise(thisHash.hash, thatHash.hash)
+func (thisHash *qldbHash) dot(thatHash *qldbHash) (*qldbHash, error) {
+	concatenated, err := joinHashesPairwise(thisHash.hash, thatHash.hash)
+	if err != nil {
+		return nil, err
+	}
+
 	newHash := sha256.Sum256(concatenated)
-	return &qldbHash{newHash[:]}
+	return &qldbHash{newHash[:]}, nil
 }
 
-func joinHashesPairwise(h1 []byte, h2 []byte) []byte {
+func joinHashesPairwise(h1 []byte, h2 []byte) ([]byte, error) {
 	if len(h1) == 0 {
-		return h2
+		return h2, nil
 	}
 	if len(h2) == 0 {
-		return h1
+		return h1, nil
 	}
+
+	compare, err := hashComparator(h1, h2)
+	if err != nil {
+		return nil, err
+	}
+
 	var concatenated []byte
-	if hashComparator(h1, h2) < 0 {
+	if compare < 0 {
 		concatenated = append(h1, h2...)
 	} else {
 		concatenated = append(h2, h1...)
 	}
-	return concatenated
+	return concatenated, nil
 }
 
-func hashComparator(h1 []byte, h2 []byte) int16 {
+func hashComparator(h1 []byte, h2 []byte) (int16, error) {
 	if len(h1) != hashSize || len(h2) != hashSize {
-		panic("invalid hash")
+		return 0, &QLDBDriverError{"invalid hash"}
 	}
 	for i, _ := range h1 {
 		// Reverse index for little endianness
@@ -87,8 +97,8 @@ func hashComparator(h1 []byte, h2 []byte) int16 {
 
 		difference := h1Int - h2Int
 		if difference != 0 {
-			return difference
+			return difference, nil
 		}
 	}
-	return 0
+	return 0, nil
 }

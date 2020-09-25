@@ -25,26 +25,22 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/youtube/vitess/go/sync2"
 )
 
 func TestNew(t *testing.T) {
-	t.Run("panic for 0 max transactions", func(t *testing.T) {
+	t.Run("0 max transactions error", func(t *testing.T) {
 		awsSession := sdksession.Must(sdksession.NewSession())
 		qldbSession := qldbsession.New(awsSession)
 
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("New should have panicked")
-			}
-		}()
-
-		New(mockLedgerName,
+		_, err := New(mockLedgerName,
 			qldbSession,
 			func(options *DriverOptions) {
 				options.LoggerVerbosity = LogOff
 				options.MaxConcurrentTransactions = 0
 			})
+		assert.Error(t, err)
 	})
 
 	t.Run("New default success", func(t *testing.T) {
@@ -53,11 +49,12 @@ func TestNew(t *testing.T) {
 		initialRetries := 4
 		qldbSession.Client.Config.MaxRetries = &initialRetries
 
-		createdDriver := New(mockLedgerName,
+		createdDriver, err := New(mockLedgerName,
 			qldbSession,
 			func(options *DriverOptions) {
 				options.LoggerVerbosity = LogOff
 			})
+		require.NoError(t, err)
 
 		assert.Equal(t, createdDriver.ledgerName, mockLedgerName)
 		assert.Equal(t, createdDriver.maxConcurrentTransactions, defaultMaxConcurrentTransactions)
@@ -74,13 +71,13 @@ func TestNew(t *testing.T) {
 		initialRetries := 4
 		qldbSession.Client.Config.MaxRetries = &initialRetries
 
-		createdDriver := New(mockLedgerName,
+		createdDriver, err := New(mockLedgerName,
 			qldbSession,
 			func(options *DriverOptions) {
 				options.LoggerVerbosity = LogOff
 				options.MaxConcurrentTransactions = 65534
 			})
-
+		require.NoError(t, err)
 		assert.Equal(t, uint16(65534), createdDriver.maxConcurrentTransactions)
 	})
 }
@@ -97,17 +94,13 @@ func TestExecute(t *testing.T) {
 		sessionPool:               make(chan *session, 10),
 	}
 
-	t.Run("panic", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Execute should have panicked")
-			}
-			testDriver.isClosed = false
-		}()
-
+	t.Run("Execute with closed driver error", func(t *testing.T) {
 		testDriver.isClosed = true
-		testDriver.Execute(context.Background(), nil)
 
+		_, err := testDriver.Execute(context.Background(), nil)
+		assert.Error(t, err)
+
+		testDriver.isClosed = false
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -116,7 +109,6 @@ func TestExecute(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-
 			// Note : We are using a select * without specifying a where condition for the purpose of this test.
 			//        However, we do not recommend using such a query in a normal/production context.
 			innerResult, innerErr := txn.Execute("SELECT * FROM someTable")
@@ -127,7 +119,6 @@ func TestExecute(t *testing.T) {
 		})
 		assert.Equal(t, err, mockError)
 		assert.Nil(t, result)
-
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -147,7 +138,7 @@ func TestExecute(t *testing.T) {
 		})
 
 		assert.Equal(t, mockTables, executeResult.([]string))
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 	})
 }
@@ -164,20 +155,16 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		sessionPool:               make(chan *session, 10),
 	}
 
-	t.Run("panic", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Execute should have panicked")
-			}
-			testDriver.isClosed = false
-		}()
-
+	t.Run("ExecuteWithRetryPolicy with closed driver error", func(t *testing.T) {
 		testDriver.isClosed = true
-		testDriver.ExecuteWithRetryPolicy(context.Background(), nil, RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+
+		_, err := testDriver.ExecuteWithRetryPolicy(context.Background(), nil, RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		assert.Error(t, err)
+
+		testDriver.isClosed = false
 	})
 
 	t.Run("error get session", func(t *testing.T) {
-
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
 		testDriver.qldbSession = mockSession
@@ -262,7 +249,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		expectedTables = append(expectedTables, "table1")
 
 		assert.Equal(t, expectedTables, result.([]string))
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("success execute with retry on ISE", func(t *testing.T) {
@@ -308,7 +295,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		expectedTables = append(expectedTables, "table1")
 
 		assert.Equal(t, expectedTables, result.([]string))
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("ISE returned when exceed ISE retry limit", func(t *testing.T) {
@@ -350,9 +337,8 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 				return tableNames, nil
 			},
 			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
-
+		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.NotNil(t, err)
 
 		awsErr, ok := err.(awserr.Error)
 		assert.True(t, ok)
@@ -398,9 +384,8 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 				return tableNames, nil
 			},
 			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
-
+		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.NotNil(t, err)
 
 		awsErr, ok := err.(awserr.Error)
 		assert.True(t, ok)
@@ -444,9 +429,8 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 				return nil, customerErr
 			},
 			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
-
+		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.NotNil(t, err)
 		assert.Equal(t, customerErr, err)
 
 		mockSession.AssertNumberOfCalls(t, "SendCommandWithContext", 3)
@@ -499,7 +483,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		expectedTables = append(expectedTables, "table1")
 
 		assert.Equal(t, expectedTables, result.([]string))
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 func TestGetTableNames(t *testing.T) {
@@ -514,16 +498,13 @@ func TestGetTableNames(t *testing.T) {
 		sessionPool:               make(chan *session, 10),
 	}
 
-	t.Run("panic", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Execute should have panicked")
-			}
-			testDriver.isClosed = false
-		}()
-
+	t.Run("GetTableNames from closed driver error", func(t *testing.T) {
 		testDriver.isClosed = true
-		testDriver.GetTableNames(context.Background())
+
+		_, err := testDriver.GetTableNames(context.Background())
+		assert.Error(t, err)
+
+		testDriver.isClosed = false
 	})
 
 	t.Run("error on Execute", func(t *testing.T) {
@@ -564,7 +545,7 @@ func TestGetTableNames(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.GetTableNames(context.Background())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, expectedTables, result)
 	})
 }
@@ -620,7 +601,7 @@ func TestGetSession(t *testing.T) {
 
 		session, err := testDriver.getSession(context.Background())
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, &mockSessionToken, session.communicator.(*communicator).sessionToken)
 	})
 
@@ -644,7 +625,7 @@ func TestGetSession(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		session, err := testDriver.getSession(context.Background())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, &mockSessionToken, session.communicator.(*communicator).sessionToken)
 	})
 
@@ -669,23 +650,23 @@ func TestSessionPoolCapacity(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		session1, err := testDriver.getSession(context.Background())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, session1)
 
 		session2, err := testDriver.getSession(context.Background())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, session2)
 
 		session3, err := testDriver.getSession(context.Background())
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, session3)
 		qldbErr := err.(*QLDBDriverError)
-		assert.NotNil(t, qldbErr)
+		assert.Error(t, qldbErr)
 
 		testDriver.releaseSession(session1)
 
 		session4, err := testDriver.getSession(context.Background())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, session4)
 
 		testDriver.Close(context.Background())
@@ -724,7 +705,7 @@ func TestCreateSession(t *testing.T) {
 
 		session, err := testDriver.createSession(context.Background())
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, &mockSessionToken, session.communicator.(*communicator).sessionToken)
 	})
 }

@@ -60,7 +60,7 @@ func (testBase *testBase) createLedger(t *testing.T) {
 	deletionProtection := false
 	permissions := "ALLOW_ALL"
 	_, err := testBase.qldb.CreateLedger(&qldb.CreateLedgerInput{Name: testBase.ledgerName, DeletionProtection: &deletionProtection, PermissionsMode: &permissions})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	testBase.waitForActive()
 }
 
@@ -77,7 +77,7 @@ func (testBase *testBase) deleteLedger(t *testing.T) {
 		testBase.logger.Log("Encountered error during deletion")
 		testBase.logger.Log(err.Error())
 		t.Errorf("Failing test due to deletion failure")
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		return
 	}
 	testBase.waitForDeletion()
@@ -111,13 +111,13 @@ func (testBase *testBase) waitForDeletion() {
 	}
 }
 
-func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions uint16, retryLimit uint8) *QLDBDriver {
+func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions uint16, retryLimit uint8) (*QLDBDriver, error) {
 	driverSession := AWSSession.Must(AWSSession.NewSession(aws.NewConfig().WithRegion(*testBase.regionName)))
-	qldbsession := qldbsession.New(driverSession)
-	return New(ledgerName, qldbsession, func(options *DriverOptions) {
+	qldbSession := qldbsession.New(driverSession)
+
+	return New(ledgerName, qldbSession, func(options *DriverOptions) {
 		options.LoggerVerbosity = LogInfo
 		options.MaxConcurrentTransactions = maxConcurrentTransactions
 		options.RetryLimit = retryLimit
 	})
-
 }

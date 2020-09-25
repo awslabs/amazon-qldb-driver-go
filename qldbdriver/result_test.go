@@ -78,7 +78,7 @@ func TestResult(t *testing.T) {
 			result.pageToken = nil
 
 			ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, mockIonBinary, ionBinary)
 			// No more values
 			ionBinary, err = result.Next(&transactionExecutor{nil, nil})
@@ -100,11 +100,11 @@ func TestResult(t *testing.T) {
 
 				// Default page
 				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, mockIonBinary, ionBinary)
 				// Fetched page
 				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, mockNextIonBinary, ionBinary)
 				// No more results
 				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
@@ -122,7 +122,7 @@ func TestResult(t *testing.T) {
 
 				// Default page
 				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, mockIonBinary, ionBinary)
 				// Fetched page
 				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
@@ -158,10 +158,10 @@ func TestBufferedResult(t *testing.T) {
 		result.index = 0
 
 		byteSlice, err := result.Next()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, byteSlice1, byteSlice)
 		byteSlice, err = result.Next()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, byteSlice2, byteSlice)
 		// End of slice
 		byteSlice, err = result.Next()
