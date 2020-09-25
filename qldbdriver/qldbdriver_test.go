@@ -582,6 +582,7 @@ func TestGetSession(t *testing.T) {
 		semaphore:                 sync2.NewSemaphore(int(10), 0),
 		sessionPool:               make(chan *session, 10),
 	}
+	defer testDriver.Close(context.Background())
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
@@ -628,8 +629,6 @@ func TestGetSession(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, &mockSessionToken, session.communicator.(*communicator).sessionToken)
 	})
-
-	testDriver.Close(context.Background())
 }
 
 func TestSessionPoolCapacity(t *testing.T) {
@@ -644,6 +643,7 @@ func TestSessionPoolCapacity(t *testing.T) {
 			semaphore:                 sync2.NewSemaphore(int(2), 0),
 			sessionPool:               make(chan *session, 2),
 		}
+		defer testDriver.Close(context.Background())
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)
@@ -668,8 +668,6 @@ func TestSessionPoolCapacity(t *testing.T) {
 		session4, err := testDriver.getSession(context.Background())
 		assert.NoError(t, err)
 		assert.NotNil(t, session4)
-
-		testDriver.Close(context.Background())
 	})
 }
 
