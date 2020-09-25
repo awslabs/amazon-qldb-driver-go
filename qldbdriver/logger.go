@@ -13,7 +13,10 @@ and limitations under the License.
 
 package qldbdriver
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 // Interface for a logger that can be used with QLDBDriver.
 type Logger interface {
@@ -37,15 +40,28 @@ type qldbLogger struct {
 	verbosity LogLevel
 }
 
-func (qldbLogger *qldbLogger) log(message string, verbosityLevel LogLevel) {
+func (qldbLogger *qldbLogger) log(verbosityLevel LogLevel, message string) {
 	if verbosityLevel <= qldbLogger.verbosity {
 		switch verbosityLevel {
 		case LogInfo:
-			qldbLogger.logger.Log("[INFO]" + message)
+			qldbLogger.logger.Log("[INFO] " + message)
 		case LogDebug:
-			qldbLogger.logger.Log("[DEBUG]" + message)
+			qldbLogger.logger.Log("[DEBUG] " + message)
 		default:
 			qldbLogger.logger.Log(message)
+		}
+	}
+}
+
+func (qldbLogger *qldbLogger) logf(verbosityLevel LogLevel, message string, args ...interface{}) {
+	if verbosityLevel <= qldbLogger.verbosity {
+		switch verbosityLevel {
+		case LogInfo:
+			qldbLogger.logger.Log(fmt.Sprintf("[INFO] " + message, args...))
+		case LogDebug:
+			qldbLogger.logger.Log(fmt.Sprintf("[DEBUG] " + message, args...))
+		default:
+			qldbLogger.logger.Log(fmt.Sprintf(message, args...))
 		}
 	}
 }

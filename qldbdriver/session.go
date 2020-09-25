@@ -15,7 +15,6 @@ package qldbdriver
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"regexp"
 
@@ -112,7 +111,7 @@ func (session *session) startTransaction(ctx context.Context) (*transaction, err
 func (session *session) tryAbort(ctx context.Context) bool {
 	_, err := session.communicator.abortTransaction(ctx)
 	if err != nil {
-		session.logger.log(fmt.Sprintf("Failed to abort the transaction.\nCaused by %v", err), LogDebug)
+		session.logger.logf(LogDebug, "Failed to abort the transaction.\nCaused by '%v'", err.Error())
 		return false
 	}
 	return true
