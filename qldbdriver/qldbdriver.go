@@ -162,17 +162,16 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 			return nil, err
 		}
 		tableNames := make([]string, 0)
-		for result.HasNext() {
-			ionBinary, err := result.Next(txn)
+		for result.Next(txn) {
+			nameStruct := new(tableName)
+			err = ion.Unmarshal(result.ionBinary, &nameStruct)
 			if err != nil {
 				return nil, err
 			}
-			nameStruct := new(tableName)
-			ionErr := ion.Unmarshal(ionBinary, &nameStruct)
-			if ionErr != nil {
-				return nil, ionErr
-			}
 			tableNames = append(tableNames, nameStruct.Name)
+		}
+		if result.err != nil {
+			return nil, result.err
 		}
 		return tableNames, nil
 	})

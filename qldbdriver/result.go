@@ -29,31 +29,33 @@ type Result struct {
 	pageToken    *string
 	index        int
 	logger       *qldbLogger
-}
-
-// Return whether or not there is another row to read in the current result set.
-func (result *Result) HasNext() bool {
-	return result.index < len(result.pageValues) || result.pageToken != nil
+	ionBinary    []byte
+	err          error
 }
 
 // Return the next row of data in the current result set. Returns an error if there are no more rows.
 //
 // The returned data is in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
 // See https://github.com/amzn/ion-go for more information.
-func (result *Result) Next(txn Transaction) ([]byte, error) {
-	if !result.HasNext() {
-		return nil, errors.New("no more values")
-	}
-	if result.index == len(result.pageValues) {
-		err := result.getNextPage()
-		if err != nil {
-			return nil, err
+func (result *Result) Next(txn Transaction) bool {
+	result.err = nil
+
+	if result.index >= len(result.pageValues) {
+		if result.pageToken == nil {
+			result.err = errors.New("no more values")
+			return false
+		}
+		result.err = result.getNextPage()
+		if result.err != nil {
+			return false
 		}
 		return result.Next(txn)
 	}
-	ionBinary := result.pageValues[result.index].IonBinary
+
+	result.ionBinary = result.pageValues[result.index].IonBinary
 	result.index++
-	return ionBinary, nil
+
+	return true
 }
 
 func (result *Result) getNextPage() error {

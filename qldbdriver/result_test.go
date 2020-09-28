@@ -15,10 +15,11 @@ package qldbdriver
 
 import (
 	"context"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 func TestResult(t *testing.T) {
@@ -51,11 +52,10 @@ func TestResult(t *testing.T) {
 			result.index = 0
 			result.pageToken = nil
 
-			assert.True(t, result.HasNext())
 			// Consume first value
-			result.Next(&transactionExecutor{nil, nil})
+			assert.True(t, result.Next(&transactionExecutor{nil, nil}))
 			// No second value or page to fetch
-			assert.False(t, result.HasNext())
+			assert.False(t, result.Next(&transactionExecutor{nil, nil}))
 		})
 
 		t.Run("pageToken present", func(t *testing.T) {
@@ -64,11 +64,10 @@ func TestResult(t *testing.T) {
 			result.index = 0
 			result.pageToken = &mockToken
 
-			assert.True(t, result.HasNext())
 			// Consume first value
-			result.Next(&transactionExecutor{nil, nil})
+			assert.True(t, result.Next(&transactionExecutor{nil, nil}))
 			// No second value but has page to fetch
-			assert.True(t, result.HasNext())
+			assert.False(t, result.Next(&transactionExecutor{nil, nil}))
 		})
 	})
 
@@ -77,13 +76,13 @@ func TestResult(t *testing.T) {
 			result.index = 0
 			result.pageToken = nil
 
-			ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-			assert.Nil(t, err)
-			assert.Equal(t, mockIonBinary, ionBinary)
+			assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+			assert.Equal(t, mockIonBinary, result.ionBinary)
+
 			// No more values
-			ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-			assert.Nil(t, ionBinary)
-			assert.Error(t, err)
+			assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+			assert.Nil(t, result.ionBinary)
+			assert.Error(t, result.err)
 		})
 
 		t.Run("pageToken present", func(t *testing.T) {
@@ -99,17 +98,17 @@ func TestResult(t *testing.T) {
 				result.communicator = mockService
 
 				// Default page
-				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, err)
-				assert.Equal(t, mockIonBinary, ionBinary)
+				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Equal(t, mockIonBinary, result.ionBinary)
+
 				// Fetched page
-				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, err)
-				assert.Equal(t, mockNextIonBinary, ionBinary)
+				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Equal(t, mockNextIonBinary, result.ionBinary)
+
 				// No more results
-				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, ionBinary)
-				assert.Error(t, err)
+				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Nil(t, result.ionBinary)
+				assert.Error(t, result.err)
 			})
 
 			t.Run("fail", func(t *testing.T) {
@@ -121,13 +120,13 @@ func TestResult(t *testing.T) {
 				result.communicator = mockService
 
 				// Default page
-				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, err)
-				assert.Equal(t, mockIonBinary, ionBinary)
+				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Equal(t, mockIonBinary, result.ionBinary)
+
 				// Fetched page
-				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, ionBinary)
-				assert.Equal(t, mockError, err)
+				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Nil(t, result.ionBinary)
+				assert.Equal(t, mockError, result.err)
 			})
 		})
 	})

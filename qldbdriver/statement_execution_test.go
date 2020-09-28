@@ -63,12 +63,11 @@ func TestStatementExecution(t *testing.T) {
 			return nil, err
 		}
 		count := 0
-		for result.HasNext() {
-			_, err := result.Next(txn)
-			if err != nil {
-				return nil, err
-			}
+		for result.Next(txn) {
 			count++
+		}
+		if result.err != nil {
+			return nil, result.err
 		}
 		return count, nil
 	}
@@ -149,14 +148,13 @@ func TestStatementExecution(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			ionBinary, err := result.Next(txn)
-			if err != nil {
-				return nil, err
+			if !result.Next(txn) {
+				return nil, result.err
 			}
 			exprStruct := new(exprName)
-			ionErr := ion.Unmarshal(ionBinary, &exprStruct)
-			if ionErr != nil {
-				return nil, ionErr
+			err = ion.Unmarshal(result.ionBinary, &exprStruct)
+			if err != nil {
+				return nil, err
 			}
 			return exprStruct.Expr, nil
 		})
@@ -204,19 +202,15 @@ func TestStatementExecution(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			if result.HasNext() {
-				ionBinary, err := result.Next(txn)
-				if err != nil {
-					return nil, err
-				}
+			if result.Next(txn) {
 				decodedResult := ""
-				decodedErr := ion.Unmarshal(ionBinary, &decodedResult)
+				decodedErr := ion.Unmarshal(result.ionBinary, &decodedResult)
 				if decodedErr != nil {
 					return nil, err
 				}
 				return decodedResult, nil
 			}
-			return nil, nil
+			return nil, result.err
 		})
 		assert.Nil(t, searchErr)
 		assert.Equal(t, singleDocumentValue, searchResult.(string))
@@ -247,19 +241,15 @@ func TestStatementExecution(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			if result.HasNext() {
-				ionBinary, err := result.Next(txn)
-				if err != nil {
-					return nil, err
-				}
+			if result.Next(txn) {
 				decodedResult := ""
-				decodedErr := ion.Unmarshal(ionBinary, &decodedResult)
+				decodedErr := ion.Unmarshal(result.ionBinary, &decodedResult)
 				if decodedErr != nil {
 					return nil, err
 				}
 				return decodedResult, nil
 			}
-			return nil, nil
+			return nil, result.err
 		})
 		assert.Nil(t, searchErr)
 		assert.Equal(t, singleDocumentValue, searchResult.(string))
@@ -292,17 +282,16 @@ func TestStatementExecution(t *testing.T) {
 				return nil, err
 			}
 			results := make([]string, 0)
-			for result.HasNext() {
-				ionBinary, err := result.Next(txn)
-				if err != nil {
-					return nil, err
-				}
+			for result.Next(txn) {
 				decodedResult := "temp"
-				decodedErr := ion.Unmarshal(ionBinary, &decodedResult)
+				decodedErr := ion.Unmarshal(result.ionBinary, &decodedResult)
 				if decodedErr != nil {
 					return nil, err
 				}
 				results = append(results, decodedResult)
+			}
+			if result.err != nil {
+				return nil, result.err
 			}
 			return results, nil
 		})
@@ -346,14 +335,13 @@ func TestStatementExecution(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			ionBinary, err := result.Next(txn)
-			if err != nil {
-				return nil, err
+			if !result.Next(txn) {
+				return nil, result.err
 			}
 			countStruct := new(rowCount)
-			ionErr := ion.Unmarshal(ionBinary, &countStruct)
-			if ionErr != nil {
-				return nil, ionErr
+			err = ion.Unmarshal(result.ionBinary, &countStruct)
+			if err != nil {
+				return nil, err
 			}
 			return countStruct.Count, nil
 		})
@@ -397,14 +385,13 @@ func TestStatementExecution(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			ionBinary, err := result.Next(txn)
-			if err != nil {
-				return nil, err
+			if !result.Next(txn) {
+				return nil, result.err
 			}
 			countStruct := new(rowCount)
-			ionErr := ion.Unmarshal(ionBinary, &countStruct)
-			if ionErr != nil {
-				return nil, ionErr
+			err = ion.Unmarshal(result.ionBinary, &countStruct)
+			if err != nil {
+				return nil, err
 			}
 			return countStruct.Count, nil
 		})
@@ -469,20 +456,18 @@ func TestStatementExecution(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				ionBinary, err := result.Next(txn)
-				if err != nil {
-					return nil, err
+				if !result.Next(txn) {
+					return nil, result.err
 				}
 				ionReceiver := new(Anon)
-				ionErr := ion.Unmarshal(ionBinary, &ionReceiver)
-				if ionErr != nil {
-					return nil, ionErr
+				err = ion.Unmarshal(result.ionBinary, &ionReceiver)
+				if err != nil {
+					return nil, err
 				}
 				return ionReceiver, nil
 			})
 			assert.Nil(t, searchErr)
 			assert.Equal(t, &parameterValue, searchResult.(*Anon))
-
 		})
 
 		testInsertCommon := func(testName, inputQuery, searchQuery string, parameterValue, ionReceiver, parameter interface{}) {
@@ -501,13 +486,12 @@ func TestStatementExecution(t *testing.T) {
 					if err != nil {
 						return nil, err
 					}
-					ionBinary, err := result.Next(txn)
+					if !result.Next(txn) {
+						return nil, result.err
+					}
+					err = ion.Unmarshal(result.ionBinary, ionReceiver)
 					if err != nil {
 						return nil, err
-					}
-					ionErr := ion.Unmarshal(ionBinary, ionReceiver)
-					if ionErr != nil {
-						return nil, ionErr
 					}
 					return ionReceiver, nil
 				})
@@ -655,13 +639,12 @@ func TestStatementExecution(t *testing.T) {
 					if err != nil {
 						return nil, err
 					}
-					ionBinary, err := result.Next(txn)
+					if !result.Next(txn) {
+						return nil, result.err
+					}
+					err = ion.Unmarshal(result.ionBinary, ionReceiver)
 					if err != nil {
 						return nil, err
-					}
-					ionErr := ion.Unmarshal(ionBinary, ionReceiver)
-					if ionErr != nil {
-						return nil, ionErr
 					}
 					return ionReceiver, nil
 				})
@@ -777,14 +760,13 @@ func TestStatementExecution(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				ionBinary, err := result.Next(txn)
-				if err != nil {
-					return nil, err
+				if !result.Next(txn) {
+					return nil, result.err
 				}
 				ionReceiver := ""
-				ionErr := ion.Unmarshal(ionBinary, &ionReceiver)
-				if ionErr != nil {
-					return nil, ionErr
+				err = ion.Unmarshal(result.ionBinary, &ionReceiver)
+				if err != nil {
+					return nil, err
 				}
 				return ionReceiver, nil
 			})
@@ -816,14 +798,13 @@ func TestStatementExecution(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				ionBinary, err := result.Next(txn)
-				if err != nil {
-					return nil, err
+				if !result.Next(txn) {
+					return nil, result.err
 				}
 				ionReceiver := new(Anon)
-				ionErr := ion.Unmarshal(ionBinary, &ionReceiver)
-				if ionErr != nil {
-					return nil, ionErr
+				err = ion.Unmarshal(result.ionBinary, &ionReceiver)
+				if err != nil {
+					return nil, err
 				}
 				return ionReceiver, nil
 			})

@@ -59,7 +59,7 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 	if err != nil {
 		return nil, err
 	}
-	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger}, nil
+	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, nil}, nil
 }
 
 func (txn *transaction) commit(ctx context.Context) error {
@@ -90,12 +90,11 @@ func (executor *transactionExecutor) Execute(statement string, parameters ...int
 // Buffer a Result into a BufferedResult to use outside the context of this transaction.
 func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
-	for result.HasNext() {
-		ionBinary, err := result.Next(executor)
-		if err != nil {
-			return nil, err
-		}
-		bufferedResults = append(bufferedResults, ionBinary)
+	for result.Next(executor) {
+		bufferedResults = append(bufferedResults, result.ionBinary)
+	}
+	if result.err != nil {
+		return nil, result.err
 	}
 	return &BufferedResult{bufferedResults, 0}, nil
 }
