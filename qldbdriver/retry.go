@@ -29,6 +29,7 @@ type RetryPolicyContext struct {
 
 // Interface for implementing a delay before retrying the provided function with a new transaction.
 type BackoffStrategy interface {
+	// Get the time to delay before retrying, using an exponential function on the retry attempt, and jitter.
 	Delay(ctx RetryPolicyContext) time.Duration
 }
 
