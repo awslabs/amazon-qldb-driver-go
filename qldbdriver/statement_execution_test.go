@@ -66,8 +66,8 @@ func TestStatementExecution(t *testing.T) {
 		for result.Next(txn) {
 			count++
 		}
-		if result.err != nil {
-			return nil, result.err
+		if result.Err() != nil {
+			return nil, result.Err()
 		}
 		return count, nil
 	}
@@ -149,10 +149,10 @@ func TestStatementExecution(t *testing.T) {
 				return nil, err
 			}
 			if !result.Next(txn) {
-				return nil, result.err
+				return nil, result.Err()
 			}
 			exprStruct := new(exprName)
-			err = ion.Unmarshal(result.ionBinary, &exprStruct)
+			err = ion.Unmarshal(result.GetCurrentData(), &exprStruct)
 			if err != nil {
 				return nil, err
 			}
@@ -204,13 +204,13 @@ func TestStatementExecution(t *testing.T) {
 			}
 			if result.Next(txn) {
 				decodedResult := ""
-				decodedErr := ion.Unmarshal(result.ionBinary, &decodedResult)
+				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
 					return nil, err
 				}
 				return decodedResult, nil
 			}
-			return nil, result.err
+			return nil, result.Err()
 		})
 		assert.Nil(t, searchErr)
 		assert.Equal(t, singleDocumentValue, searchResult.(string))
@@ -243,13 +243,13 @@ func TestStatementExecution(t *testing.T) {
 			}
 			if result.Next(txn) {
 				decodedResult := ""
-				decodedErr := ion.Unmarshal(result.ionBinary, &decodedResult)
+				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
 					return nil, err
 				}
 				return decodedResult, nil
 			}
-			return nil, result.err
+			return nil, result.Err()
 		})
 		assert.Nil(t, searchErr)
 		assert.Equal(t, singleDocumentValue, searchResult.(string))
@@ -284,14 +284,14 @@ func TestStatementExecution(t *testing.T) {
 			results := make([]string, 0)
 			for result.Next(txn) {
 				decodedResult := "temp"
-				decodedErr := ion.Unmarshal(result.ionBinary, &decodedResult)
+				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
 					return nil, err
 				}
 				results = append(results, decodedResult)
 			}
-			if result.err != nil {
-				return nil, result.err
+			if result.Err() != nil {
+				return nil, result.Err()
 			}
 			return results, nil
 		})
@@ -336,10 +336,10 @@ func TestStatementExecution(t *testing.T) {
 				return nil, err
 			}
 			if !result.Next(txn) {
-				return nil, result.err
+				return nil, result.Err()
 			}
 			countStruct := new(rowCount)
-			err = ion.Unmarshal(result.ionBinary, &countStruct)
+			err = ion.Unmarshal(result.GetCurrentData(), &countStruct)
 			if err != nil {
 				return nil, err
 			}
@@ -386,10 +386,10 @@ func TestStatementExecution(t *testing.T) {
 				return nil, err
 			}
 			if !result.Next(txn) {
-				return nil, result.err
+				return nil, result.Err()
 			}
 			countStruct := new(rowCount)
-			err = ion.Unmarshal(result.ionBinary, &countStruct)
+			err = ion.Unmarshal(result.GetCurrentData(), &countStruct)
 			if err != nil {
 				return nil, err
 			}
@@ -457,10 +457,10 @@ func TestStatementExecution(t *testing.T) {
 					return nil, err
 				}
 				if !result.Next(txn) {
-					return nil, result.err
+					return nil, result.Err()
 				}
 				ionReceiver := new(Anon)
-				err = ion.Unmarshal(result.ionBinary, &ionReceiver)
+				err = ion.Unmarshal(result.GetCurrentData(), &ionReceiver)
 				if err != nil {
 					return nil, err
 				}
@@ -487,9 +487,9 @@ func TestStatementExecution(t *testing.T) {
 						return nil, err
 					}
 					if !result.Next(txn) {
-						return nil, result.err
+						return nil, result.Err()
 					}
-					err = ion.Unmarshal(result.ionBinary, ionReceiver)
+					err = ion.Unmarshal(result.GetCurrentData(), ionReceiver)
 					if err != nil {
 						return nil, err
 					}
@@ -640,9 +640,9 @@ func TestStatementExecution(t *testing.T) {
 						return nil, err
 					}
 					if !result.Next(txn) {
-						return nil, result.err
+						return nil, result.Err()
 					}
-					err = ion.Unmarshal(result.ionBinary, ionReceiver)
+					err = ion.Unmarshal(result.GetCurrentData(), ionReceiver)
 					if err != nil {
 						return nil, err
 					}
@@ -761,10 +761,10 @@ func TestStatementExecution(t *testing.T) {
 					return nil, err
 				}
 				if !result.Next(txn) {
-					return nil, result.err
+					return nil, result.Err()
 				}
 				ionReceiver := ""
-				err = ion.Unmarshal(result.ionBinary, &ionReceiver)
+				err = ion.Unmarshal(result.GetCurrentData(), &ionReceiver)
 				if err != nil {
 					return nil, err
 				}
@@ -799,10 +799,10 @@ func TestStatementExecution(t *testing.T) {
 					return nil, err
 				}
 				if !result.Next(txn) {
-					return nil, result.err
+					return nil, result.Err()
 				}
 				ionReceiver := new(Anon)
-				err = ion.Unmarshal(result.ionBinary, &ionReceiver)
+				err = ion.Unmarshal(result.GetCurrentData(), &ionReceiver)
 				if err != nil {
 					return nil, err
 				}

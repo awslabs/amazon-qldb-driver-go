@@ -15,10 +15,11 @@ package qldbdriver
 
 import (
 	"context"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 func TestTransaction(t *testing.T) {
@@ -200,10 +201,10 @@ func TestTransactionExecutor(t *testing.T) {
 
 			bufferedResult, err := testExecutor.BufferResult(&testResult)
 			assert.Nil(t, err)
-			value, _ := bufferedResult.Next()
-			assert.Equal(t, mockIonBinary, value)
-			value, _ = bufferedResult.Next()
-			assert.Equal(t, mockNextIonBinary, value)
+			assert.True(t, bufferedResult.Next())
+			assert.Equal(t, mockIonBinary, bufferedResult.ionBinary)
+			assert.True(t, bufferedResult.Next())
+			assert.Equal(t, mockNextIonBinary, bufferedResult.ionBinary)
 		})
 
 		t.Run("error", func(t *testing.T) {

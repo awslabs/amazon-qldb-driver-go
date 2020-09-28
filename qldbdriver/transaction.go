@@ -91,12 +91,12 @@ func (executor *transactionExecutor) Execute(statement string, parameters ...int
 func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
 	for result.Next(executor) {
-		bufferedResults = append(bufferedResults, result.ionBinary)
+		bufferedResults = append(bufferedResults, result.GetCurrentData())
 	}
-	if result.err != nil {
-		return nil, result.err
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
-	return &BufferedResult{bufferedResults, 0}, nil
+	return &BufferedResult{bufferedResults, 0, nil}, nil
 }
 
 // Abort the transaction, discarding any previous statement executions within this transaction.

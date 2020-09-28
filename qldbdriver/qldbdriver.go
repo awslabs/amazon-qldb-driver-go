@@ -164,14 +164,14 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 		tableNames := make([]string, 0)
 		for result.Next(txn) {
 			nameStruct := new(tableName)
-			err = ion.Unmarshal(result.ionBinary, &nameStruct)
+			err = ion.Unmarshal(result.GetCurrentData(), &nameStruct)
 			if err != nil {
 				return nil, err
 			}
 			tableNames = append(tableNames, nameStruct.Name)
 		}
-		if result.err != nil {
-			return nil, result.err
+		if result.Err() != nil {
+			return nil, result.Err()
 		}
 		return tableNames, nil
 	})

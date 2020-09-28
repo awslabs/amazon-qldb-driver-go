@@ -47,42 +47,18 @@ func TestResult(t *testing.T) {
 		logger:       nil,
 	}
 
-	t.Run("HasNext", func(t *testing.T) {
-		t.Run("pageToken is nil", func(t *testing.T) {
-			result.index = 0
-			result.pageToken = nil
-
-			// Consume first value
-			assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-			// No second value or page to fetch
-			assert.False(t, result.Next(&transactionExecutor{nil, nil}))
-		})
-
-		t.Run("pageToken present", func(t *testing.T) {
-			mockToken := "mockToken"
-			// Reset index
-			result.index = 0
-			result.pageToken = &mockToken
-
-			// Consume first value
-			assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-			// No second value but has page to fetch
-			assert.False(t, result.Next(&transactionExecutor{nil, nil}))
-		})
-	})
-
 	t.Run("Next", func(t *testing.T) {
 		t.Run("pageToken is nil", func(t *testing.T) {
 			result.index = 0
 			result.pageToken = nil
 
 			assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-			assert.Equal(t, mockIonBinary, result.ionBinary)
+			assert.Equal(t, mockIonBinary, result.GetCurrentData())
 
 			// No more values
 			assert.False(t, result.Next(&transactionExecutor{nil, nil}))
-			assert.Nil(t, result.ionBinary)
-			assert.Error(t, result.err)
+			assert.Nil(t, result.GetCurrentData())
+			assert.NoError(t, result.Err())
 		})
 
 		t.Run("pageToken present", func(t *testing.T) {
@@ -99,16 +75,16 @@ func TestResult(t *testing.T) {
 
 				// Default page
 				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, mockIonBinary, result.ionBinary)
+				assert.Equal(t, mockIonBinary, result.GetCurrentData())
 
 				// Fetched page
 				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, mockNextIonBinary, result.ionBinary)
+				assert.Equal(t, mockNextIonBinary, result.GetCurrentData())
 
 				// No more results
 				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Nil(t, result.ionBinary)
-				assert.Error(t, result.err)
+				assert.Nil(t, result.GetCurrentData())
+				assert.NoError(t, result.Err())
 			})
 
 			t.Run("fail", func(t *testing.T) {
@@ -121,12 +97,12 @@ func TestResult(t *testing.T) {
 
 				// Default page
 				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, mockIonBinary, result.ionBinary)
+				assert.Equal(t, mockIonBinary, result.GetCurrentData())
 
 				// Fetched page
 				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Nil(t, result.ionBinary)
-				assert.Equal(t, mockError, result.err)
+				assert.Nil(t, result.GetCurrentData())
+				assert.Equal(t, mockError, result.Err())
 			})
 		})
 	})
@@ -142,30 +118,18 @@ func TestBufferedResult(t *testing.T) {
 	byteSliceSlice[1] = byteSlice2
 	result := BufferedResult{values: byteSliceSlice, index: 0}
 
-	t.Run("HasNext", func(t *testing.T) {
-		// byteSlice1
-		assert.True(t, result.HasNext())
-		result.Next()
-		// byteSlice2
-		assert.True(t, result.HasNext())
-		result.Next()
-		// End of slice
-		assert.False(t, result.HasNext())
-	})
-
 	t.Run("Next", func(t *testing.T) {
 		result.index = 0
 
-		byteSlice, err := result.Next()
-		assert.Nil(t, err)
-		assert.Equal(t, byteSlice1, byteSlice)
-		byteSlice, err = result.Next()
-		assert.Nil(t, err)
-		assert.Equal(t, byteSlice2, byteSlice)
+		assert.True(t, result.Next())
+		assert.Equal(t, byteSlice1, result.ionBinary)
+
+		assert.True(t, result.Next())
+		assert.Equal(t, byteSlice2, result.ionBinary)
+
 		// End of slice
-		byteSlice, err = result.Next()
-		assert.Nil(t, byteSlice)
-		assert.Error(t, err)
+		assert.False(t, result.Next())
+		assert.Nil(t, result.ionBinary)
 	})
 }
 
