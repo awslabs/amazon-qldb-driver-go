@@ -95,7 +95,7 @@ func TestExecute(t *testing.T) {
 		isClosed:                  false,
 		semaphore:                 sync2.NewSemaphore(10, time.Duration(10)*time.Second),
 		sessionPool:               make(chan *session, 10),
-		retryPolicy:               RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}},
+		retryPolicy:               RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBase: 10000000, SleepCap: 5000000000}},
 	}
 
 	t.Run("panic", func(t *testing.T) {

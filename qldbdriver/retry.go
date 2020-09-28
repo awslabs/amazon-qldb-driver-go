@@ -45,14 +45,15 @@ type RetryPolicy struct {
 // This is the default strategy implementation.
 type ExponentialBackoffStrategy struct {
 	// The time in milliseconds to use as the exponent base for the delay calculation.
-	SleepBaseInMillis float64
+	SleepBase time.Duration
 	// The maximum delay time in milliseconds.
-	SleepCapInMillis float64
+	SleepCap time.Duration
 }
 
 // Get the time to delay before retrying, using an exponential function on the retry attempt, and jitter.
 func (s ExponentialBackoffStrategy) Delay(ctx RetryPolicyContext) time.Duration {
+	rand.Seed(time.Now().UTC().UnixNano())
 	jitter := rand.Float64()*0.5 + 0.5
 
-	return time.Duration(jitter*math.Min(s.SleepCapInMillis, math.Pow(s.SleepBaseInMillis, float64(ctx.RetryAttempt)))) * time.Millisecond
+	return time.Duration(jitter*math.Min(float64(s.SleepCap.Milliseconds()), math.Pow(float64(s.SleepBase.Milliseconds()), float64(ctx.RetryAttempt)))) * time.Millisecond
 }

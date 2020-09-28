@@ -69,7 +69,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), 0)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
-	retryPolicy := RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}}
+	retryPolicy := RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBase: 10000000, SleepCap: 5000000000}}
 
 	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
 		semaphore, sessionPool, retryPolicy}
@@ -83,6 +83,7 @@ func (driver *QLDBDriver) SetRetryPolicy(rp RetryPolicy) {
 // Execute a provided function within the context of a new QLDB transaction.
 //
 // The provided function might be executed more than once.
+// This function is not expected to ever run concurrently.
 // It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	if driver.isClosed {
