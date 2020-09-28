@@ -57,9 +57,9 @@ func (qldbLogger *qldbLogger) logf(verbosityLevel LogLevel, message string, args
 	if verbosityLevel <= qldbLogger.verbosity {
 		switch verbosityLevel {
 		case LogInfo:
-			qldbLogger.logger.Log(fmt.Sprintf("[INFO] " + message, args...))
+			qldbLogger.logger.Log(fmt.Sprintf("[INFO] "+message, args...))
 		case LogDebug:
-			qldbLogger.logger.Log(fmt.Sprintf("[DEBUG] " + message, args...))
+			qldbLogger.logger.Log(fmt.Sprintf("[DEBUG] "+message, args...))
 		default:
 			qldbLogger.logger.Log(fmt.Sprintf(message, args...))
 		}

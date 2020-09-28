@@ -22,6 +22,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
 
+var regex = regexp.MustCompile(`Transaction\s.*\shas\sexpired`)
+
 type session struct {
 	communicator qldbService
 	logger       *qldbLogger
@@ -55,7 +57,7 @@ func (session *session) wrapError(ctx context.Context, err error, transID string
 	if awsErr, ok := err.(awserr.Error); ok {
 		switch awsErr.Code() {
 		case qldbsession.ErrCodeInvalidSessionException:
-			match, _ := regexp.MatchString("Transaction\\s.*\\shas\\sexpired", awsErr.Message())
+			match := regex.MatchString(awsErr.Message())
 			return &txnError{
 				transactionID: transID,
 				message:       "Invalid Session Exception.",
