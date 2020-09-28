@@ -46,6 +46,7 @@ type QLDBDriver struct {
 	isClosed                  bool
 	semaphore                 *sync2.Semaphore
 	sessionPool               chan *session
+	retryPolicy               RetryPolicy
 }
 
 // New creates a QLBDDriver using the parameters and options, and verifies the configuration.
@@ -68,9 +69,15 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), 0)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
+	retryPolicy := RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}}
 
 	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
-		semaphore, sessionPool}
+		semaphore, sessionPool, retryPolicy}
+}
+
+// SetRetryPolicy sets the driver's retry policy for Execute
+func (driver *QLDBDriver) SetRetryPolicy(rp RetryPolicy) {
+	driver.retryPolicy = rp
 }
 
 // Execute a provided function within the context of a new QLDB transaction.
@@ -78,14 +85,6 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 // The provided function might be executed more than once.
 // It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
-	return driver.ExecuteWithRetryPolicy(ctx, RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}}, fn)
-}
-
-// Execute a provided function within the context of a new QLDB transaction with a custom RetryPolicy.
-//
-// The provided function might be executed more than once.
-// It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
-func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, retryPolicy RetryPolicy, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	if driver.isClosed {
 		panic("Cannot invoke methods on a closed QLDBDriver.")
 	}
@@ -111,7 +110,7 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, retryPolic
 				continue
 			}
 			// Do not retry
-			if !txnErr.canRetry || retryAttempt >= retryPolicy.MaxRetryLimit {
+			if !txnErr.canRetry || retryAttempt >= driver.retryPolicy.MaxRetryLimit {
 				if txnErr.abortSuccess {
 					driver.releaseSession(session)
 				} else {
@@ -139,7 +138,7 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, retryPolic
 					}
 				}
 			}
-			time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
+			time.Sleep(driver.retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
 			continue
 		}
 		driver.releaseSession(session)
