@@ -95,6 +95,7 @@ func TestExecute(t *testing.T) {
 		isClosed:                  false,
 		semaphore:                 sync2.NewSemaphore(10, time.Duration(10)*time.Second),
 		sessionPool:               make(chan *session, 10),
+		retryPolicy:               RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}},
 	}
 
 	t.Run("panic", func(t *testing.T) {
@@ -152,6 +153,7 @@ func TestExecute(t *testing.T) {
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
 		testDriver.qldbSession = mockSession
+		testDriver.sessionPool = make(chan *session, 10)
 
 		result, err := testDriver.Execute(context.Background(), nil)
 
