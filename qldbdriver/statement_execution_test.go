@@ -78,7 +78,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Drop existing table", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 
 		createTableName := "GoIntegrationTestCreateTable"
 		createTableQuery := fmt.Sprintf("CREATE TABLE %s", createTableName)
@@ -105,7 +105,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("List tables", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		tables, err := driver.GetTableNames(context.Background())
@@ -116,7 +116,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Create table that exists", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		query := fmt.Sprintf("CREATE TABLE %s", testTableName)
@@ -134,7 +134,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Create index", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		indexQuery := fmt.Sprintf("CREATE INDEX ON %s (%s)", testTableName, indexAttribute)
@@ -173,7 +173,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Return empty when no records found", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		// Note : We are using a select * without specifying a where condition for the purpose of this test.
@@ -189,7 +189,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Insert document", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		type TestTable struct {
@@ -229,7 +229,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Query table enclosed in quotes", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		type TestTable struct {
@@ -269,7 +269,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Insert multiple documents", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		type TestTable struct {
@@ -317,7 +317,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Delete single document", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		type TestTable struct {
@@ -365,7 +365,7 @@ func TestStatementExecution(t *testing.T) {
 	t.Run("Delete all documents", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
-		defer driver.Close(context.Background())
+		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
 
 		type TestTable struct {
@@ -446,7 +446,7 @@ func TestStatementExecution(t *testing.T) {
 		t.Run("struct", func(t *testing.T) {
 			driver, err := testBase.getDriver(ledger, 10, 4)
 			require.NoError(t, err)
-			defer driver.Close(context.Background())
+			defer driver.Shutdown(context.Background())
 			defer cleanup(driver, testTableName)
 
 			type Anon struct {
@@ -490,7 +490,7 @@ func TestStatementExecution(t *testing.T) {
 			t.Run(testName, func(t *testing.T) {
 				driver, err := testBase.getDriver(ledger, 10, 4)
 				require.NoError(t, err)
-				defer driver.Close(context.Background())
+				defer driver.Shutdown(context.Background())
 				defer cleanup(driver, testTableName)
 
 				executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -646,7 +646,7 @@ func TestStatementExecution(t *testing.T) {
 			t.Run(testName, func(t *testing.T) {
 				driver, err := testBase.getDriver(ledger, 10, 4)
 				require.NoError(t, err)
-				defer driver.Close(context.Background())
+				defer driver.Shutdown(context.Background())
 
 				executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 					return executeWithParam(context.Background(), inputQuery, txn, parameter)
@@ -765,7 +765,7 @@ func TestStatementExecution(t *testing.T) {
 		t.Run("nil", func(t *testing.T) {
 			driver, err := testBase.getDriver(ledger, 10, 4)
 			require.NoError(t, err)
-			defer driver.Close(context.Background())
+			defer driver.Shutdown(context.Background())
 
 			query := fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName)
 			executeResult, executeErr := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -798,7 +798,7 @@ func TestStatementExecution(t *testing.T) {
 		t.Run("struct", func(t *testing.T) {
 			driver, err := testBase.getDriver(ledger, 10, 4)
 			require.NoError(t, err)
-			defer driver.Close(context.Background())
+			defer driver.Shutdown(context.Background())
 			defer cleanup(driver, testTableName)
 
 			type Anon struct {
@@ -847,6 +847,6 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	//teardown
-	qldbDriver.Close(context.Background())
+	qldbDriver.Shutdown(context.Background())
 	testBase.deleteLedger(t)
 }

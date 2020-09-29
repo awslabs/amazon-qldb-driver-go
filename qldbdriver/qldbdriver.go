@@ -16,6 +16,7 @@ package qldbdriver
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/amzn/ion-go/ion"
@@ -47,6 +48,7 @@ type QLDBDriver struct {
 	semaphore                 *sync2.Semaphore
 	sessionPool               chan *session
 	retryPolicy               RetryPolicy
+	lock                      sync.Mutex
 }
 
 // New creates a QLBDDriver using the parameters and options, and verifies the configuration.
@@ -75,7 +77,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	isClosed := false
 
 	return &QLDBDriver{ledgerName, qldbSession, options.MaxConcurrentTransactions, logger, isClosed,
-		semaphore, sessionPool, options.RetryPolicy}, nil
+		semaphore, sessionPool, options.RetryPolicy, sync.Mutex{}}, nil
 }
 
 // SetRetryPolicy sets the driver's retry policy for Execute.
@@ -141,7 +143,7 @@ func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) 
 					}
 				}
 			}
-			time.Sleep(driver.retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
+			time.Sleep(driver.retryPolicy.Backoff.Delay(retryAttempt))
 			continue
 		}
 		driver.releaseSession(session)
@@ -182,8 +184,10 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 	return executeResult.([]string), nil
 }
 
-// Close the driver, cleaning up allocated resources.
-func (driver *QLDBDriver) Close(ctx context.Context) {
+// Shutdown the driver, cleaning up allocated resources.
+func (driver *QLDBDriver) Shutdown(ctx context.Context) {
+	driver.lock.Lock()
+	defer driver.lock.Unlock()
 	if !driver.isClosed {
 		driver.isClosed = true
 		for len(driver.sessionPool) > 0 {

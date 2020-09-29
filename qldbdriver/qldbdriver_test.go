@@ -508,7 +508,7 @@ func TestGetTableNames(t *testing.T) {
 	})
 }
 
-func TestCloseDriver(t *testing.T) {
+func TestShutdownDriver(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
@@ -525,7 +525,7 @@ func TestCloseDriver(t *testing.T) {
 	}
 
 	t.Run("success", func(t *testing.T) {
-		testDriver.Close(context.Background())
+		testDriver.Shutdown(context.Background())
 		assert.Equal(t, testDriver.isClosed, true)
 		_, ok := <-testDriver.sessionPool
 		assert.Equal(t, ok, false)
@@ -548,7 +548,7 @@ func TestGetSession(t *testing.T) {
 				SleepBase: time.Duration(10) * time.Millisecond,
 				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
-	defer testDriver.Close(context.Background())
+	defer testDriver.Shutdown(context.Background())
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
@@ -613,7 +613,7 @@ func TestSessionPoolCapacity(t *testing.T) {
 					SleepBase: time.Duration(10) * time.Millisecond,
 					SleepCap:  time.Duration(5000) * time.Millisecond}},
 		}
-		defer testDriver.Close(context.Background())
+		defer testDriver.Shutdown(context.Background())
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)

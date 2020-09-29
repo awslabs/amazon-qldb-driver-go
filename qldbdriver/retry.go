@@ -19,18 +19,10 @@ import (
 	"time"
 )
 
-// RetryPolicyContext contains the details of the retry to be passed to the BackoffStrategy.
-type RetryPolicyContext struct {
-	// The current retry attempt count.
-	RetryAttempt int
-	// The error that caused the current retry.
-	RetriedError error
-}
-
 // Interface for implementing a delay before retrying the provided function with a new transaction.
 type BackoffStrategy interface {
 	// Get the time to delay before retrying, using an exponential function on the retry attempt, and jitter.
-	Delay(ctx RetryPolicyContext) time.Duration
+	Delay(retryAttempt int) time.Duration
 }
 
 // RetryPolicy defines the policy to use to for retrying the provided function in the case of a non-fatal error.
@@ -52,9 +44,9 @@ type ExponentialBackoffStrategy struct {
 }
 
 // Get the time to delay before retrying, using an exponential function on the retry attempt, and jitter.
-func (s ExponentialBackoffStrategy) Delay(ctx RetryPolicyContext) time.Duration {
+func (s ExponentialBackoffStrategy) Delay(retryAttempt int) time.Duration {
 	rand.Seed(time.Now().UTC().UnixNano())
 	jitter := rand.Float64()*0.5 + 0.5
 
-	return time.Duration(jitter*math.Min(float64(s.SleepCap.Milliseconds()), math.Pow(float64(s.SleepBase.Milliseconds()), float64(ctx.RetryAttempt)))) * time.Millisecond
+	return time.Duration(jitter*math.Min(float64(s.SleepCap.Milliseconds()), math.Pow(float64(s.SleepBase.Milliseconds()), float64(retryAttempt)))) * time.Millisecond
 }
