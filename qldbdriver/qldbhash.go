@@ -15,8 +15,9 @@ package qldbdriver
 
 import (
 	"crypto/sha256"
+
 	"github.com/amzn/ion-go/ion"
-	"github.com/amzn/ion-hash-go"
+	ionhash "github.com/amzn/ion-hash-go"
 )
 
 const hashSize = 32

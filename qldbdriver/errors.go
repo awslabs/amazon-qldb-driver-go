@@ -32,10 +32,6 @@ type txnError struct {
 	isISE         bool
 }
 
-func (e *txnError) Error() string {
-	return e.err.Error()
-}
-
 func (e *txnError) unwrap() error {
 	return e.err
 }

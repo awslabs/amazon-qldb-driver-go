@@ -15,10 +15,11 @@ package qldbdriver
 
 import (
 	"context"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 func TestTransaction(t *testing.T) {
