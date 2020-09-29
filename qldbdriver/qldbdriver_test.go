@@ -335,7 +335,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.semaphore = makeSemaphore(int(10))
+		testDriver.semaphore = makeSemaphore(10)
 
 		type tableName struct {
 			Name string `ion:"name"`
@@ -383,7 +383,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.semaphore = makeSemaphore(int(10))
+		testDriver.semaphore = makeSemaphore(10)
 
 		type tableName struct {
 			Name string `ion:"name"`
@@ -483,7 +483,7 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.semaphore = makeSemaphore(int(10))
+		testDriver.semaphore = makeSemaphore(10)
 
 		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
 			func(txn Transaction) (interface{}, error) {
@@ -596,7 +596,7 @@ func TestGetSession(t *testing.T) {
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
-		semaphore:                 makeSemaphore(int(10)),
+		semaphore:                 makeSemaphore(10),
 		sessionPool:               make(chan *session, 10),
 	}
 
@@ -658,7 +658,7 @@ func TestSessionPoolCapacity(t *testing.T) {
 			maxConcurrentTransactions: 2,
 			logger:                    mockLogger,
 			isClosed:                  false,
-			semaphore:                 makeSemaphore(int(2)),
+			semaphore:                 makeSemaphore(2),
 			sessionPool:               make(chan *session, 2),
 		}
 
@@ -699,7 +699,7 @@ func TestCreateSession(t *testing.T) {
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
-		semaphore:                 makeSemaphore(int(10)),
+		semaphore:                 makeSemaphore(10),
 		sessionPool:               make(chan *session, 10),
 	}
 
