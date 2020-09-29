@@ -140,7 +140,18 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 					}
 				}
 			}
-			time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
+
+			select {
+			case <-ctx.Done():
+				switch ctx.Err() {
+				case context.DeadlineExceeded:
+				case context.Canceled:
+					// Something should happen here
+				}
+			default:
+				time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
+				continue
+			}
 			continue
 		}
 		driver.releaseSession(session)
