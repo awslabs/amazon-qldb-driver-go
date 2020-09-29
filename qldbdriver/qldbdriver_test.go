@@ -61,7 +61,7 @@ func TestNew(t *testing.T) {
 
 		assert.Equal(t, createdDriver.ledgerName, mockLedgerName)
 		assert.Equal(t, createdDriver.maxConcurrentTransactions, defaultMaxConcurrentTransactions)
-		assert.Equal(t, createdDriver.retryLimit, defaultRetry)
+		assert.Equal(t, createdDriver.retryPolicy.MaxRetryLimit, defaultRetry)
 		assert.Equal(t, createdDriver.isClosed, false)
 		assert.Equal(t, cap(createdDriver.sessionPool), int(defaultMaxConcurrentTransactions))
 		assert.Equal(t, createdDriver.qldbSession, qldbSession)
@@ -89,13 +89,16 @@ func TestExecute(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 sync2.NewSemaphore(10, time.Duration(10)*time.Second),
 		sessionPool:               make(chan *session, 10),
-		retryPolicy:               RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBase: 10000000, SleepCap: 5000000000}},
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 4,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("panic", func(t *testing.T) {
@@ -298,11 +301,7 @@ func TestExecute(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.semaphore = sync2.NewSemaphore(int(10), time.Duration(10)*time.Second)
-
-		type tableName struct {
-			Name string `ion:"name"`
-		}
+		testDriver.semaphore = sync2.NewSemaphore(10, time.Duration(10)*time.Second)
 
 		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			tableNames := make([]string, 1)
@@ -343,11 +342,7 @@ func TestExecute(t *testing.T) {
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
-		testDriver.semaphore = sync2.NewSemaphore(int(10), time.Duration(10)*time.Second)
-
-		type tableName struct {
-			Name string `ion:"name"`
-		}
+		testDriver.semaphore = sync2.NewSemaphore(10, time.Duration(10)*time.Second)
 
 		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			tableNames := make([]string, 1)
@@ -457,12 +452,16 @@ func TestGetTableNames(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 sync2.NewSemaphore(10, time.Duration(10)*time.Second),
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 10,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("panic", func(t *testing.T) {
@@ -523,12 +522,16 @@ func TestCloseDriver(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 nil,
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 10,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -544,12 +547,16 @@ func TestGetSession(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 sync2.NewSemaphore(int(10), 0),
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 10,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("error", func(t *testing.T) {
@@ -606,12 +613,16 @@ func TestSessionPoolCapacity(t *testing.T) {
 		testDriver := QLDBDriver{
 			ledgerName:                mockLedgerName,
 			qldbSession:               nil,
-			retryLimit:                10,
 			maxConcurrentTransactions: 2,
 			logger:                    mockLogger,
 			isClosed:                  false,
 			semaphore:                 sync2.NewSemaphore(int(2), 0),
 			sessionPool:               make(chan *session, 2),
+			retryPolicy: RetryPolicy{
+				MaxRetryLimit: 10,
+				Backoff: ExponentialBackoffStrategy{
+					SleepBase: time.Duration(10) * time.Millisecond,
+					SleepCap:  time.Duration(5000) * time.Millisecond}},
 		}
 
 		mockSession := new(mockQLDBSession)
@@ -647,12 +658,16 @@ func TestCreateSession(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 sync2.NewSemaphore(int(10), time.Duration(10)*time.Second),
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 10,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("error", func(t *testing.T) {
