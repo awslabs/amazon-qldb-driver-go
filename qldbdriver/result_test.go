@@ -122,14 +122,14 @@ func TestBufferedResult(t *testing.T) {
 		result.index = 0
 
 		assert.True(t, result.Next())
-		assert.Equal(t, byteSlice1, result.ionBinary)
+		assert.Equal(t, byteSlice1, result.GetCurrentData())
 
 		assert.True(t, result.Next())
-		assert.Equal(t, byteSlice2, result.ionBinary)
+		assert.Equal(t, byteSlice2, result.GetCurrentData())
 
 		// End of slice
 		assert.False(t, result.Next())
-		assert.Nil(t, result.ionBinary)
+		assert.Nil(t, result.GetCurrentData())
 	})
 }
 

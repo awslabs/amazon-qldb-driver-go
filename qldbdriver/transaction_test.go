@@ -202,9 +202,9 @@ func TestTransactionExecutor(t *testing.T) {
 			bufferedResult, err := testExecutor.BufferResult(&testResult)
 			assert.Nil(t, err)
 			assert.True(t, bufferedResult.Next())
-			assert.Equal(t, mockIonBinary, bufferedResult.ionBinary)
+			assert.Equal(t, mockIonBinary, bufferedResult.GetCurrentData())
 			assert.True(t, bufferedResult.Next())
-			assert.Equal(t, mockNextIonBinary, bufferedResult.ionBinary)
+			assert.Equal(t, mockNextIonBinary, bufferedResult.GetCurrentData())
 		})
 
 		t.Run("error", func(t *testing.T) {
