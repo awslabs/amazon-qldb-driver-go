@@ -26,8 +26,8 @@ import (
 
 // DriverOptions can be used to configure the driver during construction.
 type DriverOptions struct {
-	// The amount of times a transaction will automatically retry upon a recoverable error. Default: 4.
-	RetryLimit int
+	// The policy guiding retry attempts upon a recoverable error. Default: MaxRetryLimit: 4, SleepBase: 10ms, SleepCap: 5000 ms.
+	RetryPolicy RetryPolicy
 	// The maximum amount of concurrent transactions this driver will permit. Default: 50.
 	MaxConcurrentTransactions int
 	// The logger that the driver will use for any logging messages. Default: "log" package.
@@ -54,7 +54,8 @@ type QLDBDriver struct {
 // Note that qldbSession.Client.Config.MaxRetries will be set to 0. This property should not be modified.
 // DriverOptions.RetryLimit is unrelated to this property, but should be used if it is desired to modify the amount of retires for statement executions.
 func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) *QLDBDriver {
-	options := &DriverOptions{RetryLimit: 4, MaxConcurrentTransactions: 50, Logger: defaultLogger{}, LoggerVerbosity: LogInfo}
+	retryPolicy := RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBase: 10000000, SleepCap: 5000000000}}
+	options := &DriverOptions{RetryPolicy: retryPolicy, MaxConcurrentTransactions: 50, Logger: defaultLogger{}, LoggerVerbosity: LogInfo}
 	for _, fn := range fns {
 		fn(options)
 	}
@@ -69,9 +70,8 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), 0)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
-	retryPolicy := RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBase: 10000000, SleepCap: 5000000000}}
 
-	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
+	return &QLDBDriver{ledgerName, qldbSession, options.RetryPolicy.MaxRetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
 		semaphore, sessionPool, retryPolicy}
 }
 
@@ -82,8 +82,7 @@ func (driver *QLDBDriver) SetRetryPolicy(rp RetryPolicy) {
 
 // Execute a provided function within the context of a new QLDB transaction.
 //
-// The provided function might be executed more than once.
-// This function is not expected to ever run concurrently.
+// The provided function might be executed more than once and is not expected to run concurrently.
 // It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	if driver.isClosed {

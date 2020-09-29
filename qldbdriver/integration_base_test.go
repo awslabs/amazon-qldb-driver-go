@@ -117,7 +117,7 @@ func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions
 	return New(ledgerName, qldbsession, func(options *DriverOptions) {
 		options.LoggerVerbosity = LogInfo
 		options.MaxConcurrentTransactions = maxConcurrentTransactions
-		options.RetryLimit = retryLimit
+		options.RetryPolicy.MaxRetryLimit = retryLimit
 	})
 
 }
