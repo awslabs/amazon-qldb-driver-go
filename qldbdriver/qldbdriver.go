@@ -140,18 +140,8 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 					}
 				}
 			}
-
-			select {
-			case <-ctx.Done():
-				switch ctx.Err() {
-				case context.DeadlineExceeded:
-				case context.Canceled:
-					// Something should happen here
-				}
-			default:
-				time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
-				continue
-			}
+			delay := retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()})
+			sleepWithContext(ctx, delay)
 			continue
 		}
 		driver.releaseSession(session)
@@ -243,4 +233,12 @@ func (driver *QLDBDriver) releaseSession(session *session) {
 	driver.sessionPool <- session
 	driver.semaphore.Release()
 	driver.logger.log(fmt.Sprint("Session returned to pool; size of pool is now ", len(driver.sessionPool)), LogDebug)
+}
+
+func sleepWithContext(ctx context.Context, delay time.Duration) {
+	select {
+	case <-ctx.Done():
+	case <-time.After(delay):
+		return
+	}
 }
