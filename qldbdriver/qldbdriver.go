@@ -248,10 +248,7 @@ func makeSemaphore(size int) *semaphore {
 func (smphr *semaphore) tryAcquire() bool {
 	select {
 	case _, ok := <-smphr.values:
-		if ok {
-			return true
-		}
-		return false
+		return ok
 	default:
 		return false
 	}
