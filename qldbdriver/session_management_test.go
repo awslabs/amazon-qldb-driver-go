@@ -83,10 +83,10 @@ func TestSessionManagementIntegration(t *testing.T) {
 
 		for i := 0; i < 3; i++ {
 			errs.Go(func() error {
-				testBase.logger.Log("start "+string(i))
+				testBase.logger.Log("start " + string(i))
 				_, err := driver.GetTableNames(ctx)
 				time.Sleep(1 * time.Second)
-				testBase.logger.Log("end "+string(i))
+				testBase.logger.Log("end " + string(i))
 				return err
 			})
 		}
