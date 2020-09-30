@@ -53,7 +53,7 @@ type QLDBDriver struct {
 //
 // Note that qldbSession.Client.Config.MaxRetries will be set to 0. This property should not be modified.
 // DriverOptions.RetryLimit is unrelated to this property, but should be used if it is desired to modify the amount of retires for statement executions.
-func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) *QLDBDriver {
+func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) (*QLDBDriver, error) {
 	retryPolicy := RetryPolicy{
 		MaxRetryLimit: 4,
 		Backoff:       ExponentialBackoffStrategy{SleepBase: time.Duration(10) * time.Millisecond, SleepCap: time.Duration(5000) * time.Millisecond}}
@@ -63,7 +63,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 		fn(options)
 	}
 	if options.MaxConcurrentTransactions < 1 {
-		panic("MaxConcurrentTransactions must be 1 or greater.")
+		return nil, &QLDBDriverError{"MaxConcurrentTransactions must be 1 or greater."}
 	}
 
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
@@ -75,7 +75,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	isClosed := false
 
 	return &QLDBDriver{ledgerName, qldbSession, options.MaxConcurrentTransactions, logger, isClosed,
-		semaphore, sessionPool, options.RetryPolicy}
+		semaphore, sessionPool, options.RetryPolicy}, nil
 }
 
 // SetRetryPolicy sets the driver's retry policy for Execute.
@@ -89,7 +89,7 @@ func (driver *QLDBDriver) SetRetryPolicy(rp RetryPolicy) {
 // It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	if driver.isClosed {
-		panic("Cannot invoke methods on a closed QLDBDriver.")
+		return nil, &QLDBDriverError{"Cannot invoke methods on a closed QLDBDriver."}
 	}
 
 	retryAttempt := 0
@@ -202,13 +202,6 @@ func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
 	driver.logger.logf(LogDebug, "Getting session. Existing sessions available: %v", len(driver.sessionPool))
 	isPermitAcquired := driver.semaphore.TryAcquire()
 	if isPermitAcquired {
-		defer func(driver *QLDBDriver) {
-			if r := recover(); r != nil {
-				driver.logger.logf(LogDebug, "Encountered panic with message: '%v'", r)
-				driver.semaphore.Release()
-				panic(r)
-			}
-		}(driver)
 		if len(driver.sessionPool) > 0 {
 			session := <-driver.sessionPool
 			driver.logger.log(LogDebug, "Reusing session from pool.")
