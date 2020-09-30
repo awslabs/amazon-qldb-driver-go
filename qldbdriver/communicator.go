@@ -15,7 +15,6 @@ package qldbdriver
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
@@ -115,6 +114,6 @@ func (communicator *communicator) sendCommand(ctx context.Context, command *qldb
 	const version string = "0.1.0"
 	const userAgentString = "QLDB Driver for Golang v" + version
 	command.SetSessionToken(*communicator.sessionToken)
-	communicator.logger.log(fmt.Sprint(command), LogDebug)
+	communicator.logger.logf(LogDebug, "%v", command)
 	return communicator.service.SendCommandWithContext(ctx, command, request.MakeAddToUserAgentFreeFormHandler(userAgentString))
 }

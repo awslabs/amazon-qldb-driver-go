@@ -11,12 +11,11 @@ CONDITIONS OF ANY KIND, either express or implied. See the License for the speci
 and limitations under the License.
 */
 
-// The Golang driver for working with Amazon Quantum Ledger Database.
+// Package qldbdriver is the Golang driver for working with Amazon Quantum Ledger Database.
 package qldbdriver
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/amzn/ion-go/ion"
@@ -27,10 +26,11 @@ import (
 
 // DriverOptions can be used to configure the driver during construction.
 type DriverOptions struct {
-	// The amount of times a transaction will automatically retry upon a recoverable error. Default: 4.
-	RetryLimit uint8
+	// The policy guiding retry attempts upon a recoverable error.
+	// Default: MaxRetryLimit: 4, ExponentialBackoff: SleepBase: 10ms, SleepCap: 5000ms.
+	RetryPolicy RetryPolicy
 	// The maximum amount of concurrent transactions this driver will permit. Default: 50.
-	MaxConcurrentTransactions uint16
+	MaxConcurrentTransactions int
 	// The logger that the driver will use for any logging messages. Default: "log" package.
 	Logger Logger
 	// The verbosity level of the logs that the logger should receive. Default: qldbdriver.LogInfo.
@@ -41,12 +41,12 @@ type DriverOptions struct {
 type QLDBDriver struct {
 	ledgerName                string
 	qldbSession               qldbsessioniface.QLDBSessionAPI
-	retryLimit                uint8
-	maxConcurrentTransactions uint16
+	maxConcurrentTransactions int
 	logger                    *qldbLogger
 	isClosed                  bool
 	semaphore                 *sync2.Semaphore
 	sessionPool               chan *session
+	retryPolicy               RetryPolicy
 }
 
 // New creates a QLBDDriver using the parameters and options, and verifies the configuration.
@@ -54,7 +54,11 @@ type QLDBDriver struct {
 // Note that qldbSession.Client.Config.MaxRetries will be set to 0. This property should not be modified.
 // DriverOptions.RetryLimit is unrelated to this property, but should be used if it is desired to modify the amount of retires for statement executions.
 func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) *QLDBDriver {
-	options := &DriverOptions{4, 50, defaultLogger{}, LogInfo}
+	retryPolicy := RetryPolicy{
+		MaxRetryLimit: 4,
+		Backoff:       ExponentialBackoffStrategy{SleepBase: time.Duration(10) * time.Millisecond, SleepCap: time.Duration(5000) * time.Millisecond}}
+	options := &DriverOptions{RetryPolicy: retryPolicy, MaxConcurrentTransactions: 50, Logger: defaultLogger{}, LoggerVerbosity: LogInfo}
+
 	for _, fn := range fns {
 		fn(options)
 	}
@@ -70,23 +74,20 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
 
-	return &QLDBDriver{ledgerName, qldbSession, options.RetryLimit, options.MaxConcurrentTransactions, logger, isClosed,
-		semaphore, sessionPool}
+	return &QLDBDriver{ledgerName, qldbSession, options.MaxConcurrentTransactions, logger, isClosed,
+		semaphore, sessionPool, options.RetryPolicy}
+}
+
+// SetRetryPolicy sets the driver's retry policy for Execute.
+func (driver *QLDBDriver) SetRetryPolicy(rp RetryPolicy) {
+	driver.retryPolicy = rp
 }
 
 // Execute a provided function within the context of a new QLDB transaction.
 //
-// The provided function might be executed more than once.
+// The provided function might be executed more than once and is not expected to run concurrently.
 // It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
-	return driver.ExecuteWithRetryPolicy(ctx, fn, RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
-}
-
-// Execute a provided function within the context of a new QLDB transaction with a custom RetryPolicy.
-//
-// The provided function might be executed more than once.
-// It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
-func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(txn Transaction) (interface{}, error), retryPolicy RetryPolicy) (interface{}, error) {
 	if driver.isClosed {
 		panic("Cannot invoke methods on a closed QLDBDriver.")
 	}
@@ -98,12 +99,12 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 		return nil, err
 	}
 
-	for true {
+	for {
 		result, txnErr := session.execute(ctx, fn)
 		if txnErr != nil {
 			// If initial session is invalid, always retry once
 			if txnErr.canRetry && txnErr.isISE && retryAttempt == 0 {
-				driver.logger.log("Initial session received from pool invalid. Retrying...", LogDebug)
+				driver.logger.log(LogDebug, "Initial session received from pool invalid. Retrying...")
 				session, err = driver.createSession(ctx)
 				if err != nil {
 					return nil, err
@@ -112,7 +113,7 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 				continue
 			}
 			// Do not retry
-			if !txnErr.canRetry || retryAttempt >= retryPolicy.MaxRetryLimit {
+			if !txnErr.canRetry || retryAttempt >= driver.retryPolicy.MaxRetryLimit {
 				if txnErr.abortSuccess {
 					driver.releaseSession(session)
 				} else {
@@ -122,17 +123,17 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 			}
 			// Retry
 			retryAttempt++
-			driver.logger.log(fmt.Sprintf("A recoverable error has occurred. Attempting retry #%d.", retryAttempt), LogInfo)
-			driver.logger.log(fmt.Sprintf("Errored Transaction ID: %s. Error cause: %v", txnErr.transactionID, txnErr), LogDebug)
+			driver.logger.logf(LogInfo, "A recoverable error has occurred. Attempting retry #%d.", retryAttempt)
+			driver.logger.logf(LogDebug, "Errored Transaction ID: %s. Error cause: '%v'", txnErr.transactionID, txnErr)
 			if txnErr.isISE {
-				driver.logger.log("Replacing expired session...", LogDebug)
+				driver.logger.log(LogDebug, "Replacing expired session...")
 				session, err = driver.createSession(ctx)
 				if err != nil {
 					return nil, err
 				}
 			} else {
 				if !txnErr.abortSuccess {
-					driver.logger.log("Retrying with a different session...", LogDebug)
+					driver.logger.log(LogDebug, "Retrying with a different session...")
 					driver.semaphore.Release()
 					session, err = driver.getSession(ctx)
 					if err != nil {
@@ -140,7 +141,7 @@ func (driver *QLDBDriver) ExecuteWithRetryPolicy(ctx context.Context, fn func(tx
 					}
 				}
 			}
-			time.Sleep(retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
+			time.Sleep(driver.retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
 			continue
 		}
 		driver.releaseSession(session)
@@ -184,13 +185,13 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 
 // Close the driver, cleaning up allocated resources.
 func (driver *QLDBDriver) Close(ctx context.Context) {
-	if driver.isClosed == false {
+	if !driver.isClosed {
 		driver.isClosed = true
 		for len(driver.sessionPool) > 0 {
 			session := <-driver.sessionPool
 			err := session.endSession(ctx)
 			if err != nil {
-				driver.logger.log(fmt.Sprint("Encountered error trying to end session ", err), LogDebug)
+				driver.logger.logf(LogDebug, "Encountered error trying to end session: '%v'", err.Error())
 			}
 		}
 		close(driver.sessionPool)
@@ -198,19 +199,19 @@ func (driver *QLDBDriver) Close(ctx context.Context) {
 }
 
 func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
-	driver.logger.log(fmt.Sprint("Getting session. Existing sessions available:", len(driver.sessionPool)), LogDebug)
+	driver.logger.logf(LogDebug, "Getting session. Existing sessions available: %v", len(driver.sessionPool))
 	isPermitAcquired := driver.semaphore.TryAcquire()
 	if isPermitAcquired {
 		defer func(driver *QLDBDriver) {
 			if r := recover(); r != nil {
-				driver.logger.log(fmt.Sprint("Encountered panic with message ", r), LogDebug)
+				driver.logger.logf(LogDebug, "Encountered panic with message: '%v'", r)
 				driver.semaphore.Release()
 				panic(r)
 			}
 		}(driver)
 		if len(driver.sessionPool) > 0 {
 			session := <-driver.sessionPool
-			driver.logger.log("Reusing session from pool.", LogDebug)
+			driver.logger.log(LogDebug, "Reusing session from pool.")
 			return session, nil
 		}
 		return driver.createSession(ctx)
@@ -219,7 +220,7 @@ func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
 }
 
 func (driver *QLDBDriver) createSession(ctx context.Context) (*session, error) {
-	driver.logger.log("Creating a new session", LogDebug)
+	driver.logger.log(LogDebug, "Creating a new session")
 	communicator, err := startSession(ctx, driver.ledgerName, driver.qldbSession, driver.logger)
 	if err != nil {
 		driver.semaphore.Release()
@@ -231,5 +232,5 @@ func (driver *QLDBDriver) createSession(ctx context.Context) (*session, error) {
 func (driver *QLDBDriver) releaseSession(session *session) {
 	driver.sessionPool <- session
 	driver.semaphore.Release()
-	driver.logger.log(fmt.Sprint("Session returned to pool; size of pool is now ", len(driver.sessionPool)), LogDebug)
+	driver.logger.logf(LogDebug, "Session returned to pool; size of pool is now %v", len(driver.sessionPool))
 }
