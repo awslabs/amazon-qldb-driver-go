@@ -59,7 +59,7 @@ func TestNew(t *testing.T) {
 
 		assert.Equal(t, createdDriver.ledgerName, mockLedgerName)
 		assert.Equal(t, createdDriver.maxConcurrentTransactions, defaultMaxConcurrentTransactions)
-		assert.Equal(t, createdDriver.retryLimit, defaultRetry)
+		assert.Equal(t, createdDriver.retryPolicy.MaxRetryLimit, defaultRetry)
 		assert.Equal(t, createdDriver.isClosed, false)
 		assert.Equal(t, cap(createdDriver.sessionPool), int(defaultMaxConcurrentTransactions))
 		assert.Equal(t, createdDriver.qldbSession, qldbSession)
@@ -79,7 +79,7 @@ func TestNew(t *testing.T) {
 				options.MaxConcurrentTransactions = 65534
 			})
 
-		assert.Equal(t, uint16(65534), createdDriver.maxConcurrentTransactions)
+		assert.Equal(t, 65534, createdDriver.maxConcurrentTransactions)
 	})
 }
 
@@ -87,12 +87,16 @@ func TestExecute(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 makeSemaphore(10),
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 4,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("panic", func(t *testing.T) {
@@ -105,7 +109,6 @@ func TestExecute(t *testing.T) {
 
 		testDriver.isClosed = true
 		testDriver.Execute(context.Background(), nil)
-
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -125,7 +128,6 @@ func TestExecute(t *testing.T) {
 		})
 		assert.Equal(t, err, mockError)
 		assert.Nil(t, result)
-
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -146,50 +148,21 @@ func TestExecute(t *testing.T) {
 
 		assert.Equal(t, mockTables, executeResult.([]string))
 		assert.Nil(t, err)
-
-	})
-}
-
-func TestExecuteWithRetryPolicy(t *testing.T) {
-	testDriver := QLDBDriver{
-		ledgerName:                mockLedgerName,
-		qldbSession:               nil,
-		retryLimit:                10,
-		maxConcurrentTransactions: 10,
-		logger:                    mockLogger,
-		isClosed:                  false,
-		semaphore:                 makeSemaphore(10),
-		sessionPool:               make(chan *session, 10),
-	}
-
-	t.Run("panic", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Execute should have panicked")
-			}
-			testDriver.isClosed = false
-		}()
-
-		testDriver.isClosed = true
-		testDriver.ExecuteWithRetryPolicy(context.Background(), nil, RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
 	})
 
 	t.Run("error get session", func(t *testing.T) {
-
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
 		testDriver.qldbSession = mockSession
+		testDriver.sessionPool = make(chan *session, 10)
 
-		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(), nil,
-			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		result, err := testDriver.Execute(context.Background(), nil)
 
 		assert.Nil(t, result)
 		assert.Equal(t, err, mockError)
-
 	})
 
 	t.Run("error session execute", func(t *testing.T) {
-
 		mockSendCommandForSession := qldbsession.SendCommandOutput{
 			AbortTransaction:  &mockAbortTransaction,
 			CommitTransaction: &mockCommitTransaction,
@@ -222,13 +195,11 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.sessionPool = make(chan *session, 10)
 		testDriver.semaphore = makeSemaphore(10)
 
-		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
-			func(txn Transaction) (interface{}, error) {
-				tableNames := make([]string, 1)
-				tableNames = append(tableNames, "table1")
-				return tableNames, nil
-			},
-			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			tableNames := make([]string, 1)
+			tableNames = append(tableNames, "table1")
+			return tableNames, nil
+		})
 
 		assert.Nil(t, result)
 		awsErr, ok := err.(awserr.Error)
@@ -238,7 +209,6 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 	})
 
 	t.Run("success execute without retry", func(t *testing.T) {
-
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 
 		mockSession := new(mockQLDBSession)
@@ -248,13 +218,11 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.sessionPool = make(chan *session, 10)
 		testDriver.semaphore = makeSemaphore(10)
 
-		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
-			func(txn Transaction) (interface{}, error) {
-				tableNames := make([]string, 1)
-				tableNames = append(tableNames, "table1")
-				return tableNames, nil
-			},
-			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			tableNames := make([]string, 1)
+			tableNames = append(tableNames, "table1")
+			return tableNames, nil
+		})
 
 		expectedTables := make([]string, 1)
 		expectedTables = append(expectedTables, "table1")
@@ -264,7 +232,6 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 	})
 
 	t.Run("success execute with retry on ISE", func(t *testing.T) {
-
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
@@ -294,13 +261,11 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.sessionPool = make(chan *session, 10)
 		testDriver.semaphore = makeSemaphore(10)
 
-		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
-			func(txn Transaction) (interface{}, error) {
-				tableNames := make([]string, 1)
-				tableNames = append(tableNames, "table1")
-				return tableNames, nil
-			},
-			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			tableNames := make([]string, 1)
+			tableNames = append(tableNames, "table1")
+			return tableNames, nil
+		})
 
 		expectedTables := make([]string, 1)
 		expectedTables = append(expectedTables, "table1")
@@ -310,7 +275,6 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 	})
 
 	t.Run("ISE returned when exceed ISE retry limit", func(t *testing.T) {
-
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
@@ -337,17 +301,11 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.sessionPool = make(chan *session, 10)
 		testDriver.semaphore = makeSemaphore(10)
 
-		type tableName struct {
-			Name string `ion:"name"`
-		}
-
-		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
-			func(txn Transaction) (interface{}, error) {
-				tableNames := make([]string, 1)
-				tableNames = append(tableNames, "table1")
-				return tableNames, nil
-			},
-			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			tableNames := make([]string, 1)
+			tableNames = append(tableNames, "table1")
+			return tableNames, nil
+		})
 
 		assert.Nil(t, result)
 		assert.NotNil(t, err)
@@ -358,7 +316,6 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 	})
 
 	t.Run("error on transaction expiry.", func(t *testing.T) {
-
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
@@ -385,17 +342,11 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.sessionPool = make(chan *session, 10)
 		testDriver.semaphore = makeSemaphore(10)
 
-		type tableName struct {
-			Name string `ion:"name"`
-		}
-
-		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
-			func(txn Transaction) (interface{}, error) {
-				tableNames := make([]string, 1)
-				tableNames = append(tableNames, "table1")
-				return tableNames, nil
-			},
-			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			tableNames := make([]string, 1)
+			tableNames = append(tableNames, "table1")
+			return tableNames, nil
+		})
 
 		assert.Nil(t, result)
 		assert.NotNil(t, err)
@@ -406,7 +357,6 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 	})
 
 	t.Run("abort transaction on customer error", func(t *testing.T) {
-
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
@@ -437,11 +387,9 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.sessionPool = make(chan *session, 10)
 		testDriver.semaphore = makeSemaphore(10)
 
-		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
-			func(txn Transaction) (interface{}, error) {
-				return nil, customerErr
-			},
-			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			return nil, customerErr
+		})
 
 		assert.Nil(t, result)
 		assert.NotNil(t, err)
@@ -451,7 +399,6 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 	})
 
 	t.Run("success execute with retry on ISE and 500", func(t *testing.T) {
-
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
@@ -485,13 +432,11 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		testDriver.sessionPool = make(chan *session, 10)
 		testDriver.semaphore = makeSemaphore(10)
 
-		result, err := testDriver.ExecuteWithRetryPolicy(context.Background(),
-			func(txn Transaction) (interface{}, error) {
-				tableNames := make([]string, 1)
-				tableNames = append(tableNames, "table1")
-				return tableNames, nil
-			},
-			RetryPolicy{MaxRetryLimit: 4, Backoff: ExponentialBackoffStrategy{SleepBaseInMillis: 10, SleepCapInMillis: 5000}})
+		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			tableNames := make([]string, 1)
+			tableNames = append(tableNames, "table1")
+			return tableNames, nil
+		})
 
 		expectedTables := make([]string, 1)
 		expectedTables = append(expectedTables, "table1")
@@ -500,16 +445,21 @@ func TestExecuteWithRetryPolicy(t *testing.T) {
 		assert.Nil(t, err)
 	})
 }
+
 func TestGetTableNames(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 makeSemaphore(10),
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 10,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("panic", func(t *testing.T) {
@@ -536,7 +486,6 @@ func TestGetTableNames(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-
 		type tableName struct {
 			Name string `ion:"name"`
 		}
@@ -571,12 +520,16 @@ func TestCloseDriver(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 nil,
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 10,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -592,12 +545,16 @@ func TestGetSession(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 makeSemaphore(10),
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 10,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("error", func(t *testing.T) {
@@ -654,12 +611,16 @@ func TestSessionPoolCapacity(t *testing.T) {
 		testDriver := QLDBDriver{
 			ledgerName:                mockLedgerName,
 			qldbSession:               nil,
-			retryLimit:                10,
 			maxConcurrentTransactions: 2,
 			logger:                    mockLogger,
 			isClosed:                  false,
 			semaphore:                 makeSemaphore(2),
 			sessionPool:               make(chan *session, 2),
+			retryPolicy: RetryPolicy{
+				MaxRetryLimit: 10,
+				Backoff: ExponentialBackoffStrategy{
+					SleepBase: time.Duration(10) * time.Millisecond,
+					SleepCap:  time.Duration(5000) * time.Millisecond}},
 		}
 
 		mockSession := new(mockQLDBSession)
@@ -695,12 +656,16 @@ func TestCreateSession(t *testing.T) {
 	testDriver := QLDBDriver{
 		ledgerName:                mockLedgerName,
 		qldbSession:               nil,
-		retryLimit:                10,
 		maxConcurrentTransactions: 10,
 		logger:                    mockLogger,
 		isClosed:                  false,
 		semaphore:                 makeSemaphore(10),
 		sessionPool:               make(chan *session, 10),
+		retryPolicy: RetryPolicy{
+			MaxRetryLimit: 10,
+			Backoff: ExponentialBackoffStrategy{
+				SleepBase: time.Duration(10) * time.Millisecond,
+				SleepCap:  time.Duration(5000) * time.Millisecond}},
 	}
 
 	t.Run("error", func(t *testing.T) {
@@ -728,8 +693,8 @@ func TestCreateSession(t *testing.T) {
 }
 
 var mockLedgerName = "someLedgerName"
-var defaultMaxConcurrentTransactions = uint16(50)
-var defaultRetry = uint8(4)
+var defaultMaxConcurrentTransactions = 50
+var defaultRetry = 4
 var mockTxnId = "12341"
 var mockStartTransactionWithID = qldbsession.StartTransactionResult{TransactionId: &mockTxnId}
 
