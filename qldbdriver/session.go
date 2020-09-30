@@ -15,13 +15,14 @@ package qldbdriver
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
+
+var regex = regexp.MustCompile(`Transaction\s.*\shas\sexpired`)
 
 type session struct {
 	communicator qldbService
@@ -56,7 +57,7 @@ func (session *session) wrapError(ctx context.Context, err error, transID string
 	if awsErr, ok := err.(awserr.Error); ok {
 		switch awsErr.Code() {
 		case qldbsession.ErrCodeInvalidSessionException:
-			match, _ := regexp.MatchString("Transaction\\s.*\\shas\\sexpired", awsErr.Message())
+			match := regex.MatchString(awsErr.Message())
 			return &txnError{
 				transactionID: transID,
 				message:       "Invalid Session Exception.",
@@ -112,7 +113,7 @@ func (session *session) startTransaction(ctx context.Context) (*transaction, err
 func (session *session) tryAbort(ctx context.Context) bool {
 	_, err := session.communicator.abortTransaction(ctx)
 	if err != nil {
-		session.logger.log(fmt.Sprintf("Failed to abort the transaction.\nCaused by %v", err), LogDebug)
+		session.logger.logf(LogDebug, "Failed to abort the transaction.\nCaused by '%v'", err.Error())
 		return false
 	}
 	return true

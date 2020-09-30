@@ -85,7 +85,7 @@ func (testBase *testBase) deleteLedger(t *testing.T) {
 
 func (testBase *testBase) waitForActive() {
 	testBase.logger.Log("Waiting for ledger to become active...")
-	for true {
+	for {
 		output, _ := testBase.qldb.DescribeLedger(&qldb.DescribeLedgerInput{Name: testBase.ledgerName})
 		if *output.State == "ACTIVE" {
 			testBase.logger.Log("Success. Ledger is active and ready to use.")
@@ -98,7 +98,7 @@ func (testBase *testBase) waitForActive() {
 
 func (testBase *testBase) waitForDeletion() {
 	testBase.logger.Log("Waiting for ledger to be deleted...")
-	for true {
+	for {
 		_, err := testBase.qldb.DescribeLedger(&qldb.DescribeLedgerInput{Name: testBase.ledgerName})
 		testBase.logger.Log("The ledger is still deleting. Please wait...")
 		if err != nil {
@@ -111,13 +111,13 @@ func (testBase *testBase) waitForDeletion() {
 	}
 }
 
-func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions uint16, retryLimit uint8) (*QLDBDriver, error) {
+func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions int, retryLimit int) (*QLDBDriver, error) {
 	driverSession := AWSSession.Must(AWSSession.NewSession(aws.NewConfig().WithRegion(*testBase.regionName)))
 	qldbSession := qldbsession.New(driverSession)
 
 	return New(ledgerName, qldbSession, func(options *DriverOptions) {
 		options.LoggerVerbosity = LogInfo
 		options.MaxConcurrentTransactions = maxConcurrentTransactions
-		options.RetryLimit = retryLimit
+		options.RetryPolicy.MaxRetryLimit = retryLimit
 	})
 }
