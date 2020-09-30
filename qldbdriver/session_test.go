@@ -43,7 +43,7 @@ func TestSessionStartTransaction(t *testing.T) {
 
 		result, err := session.startTransaction(context.Background())
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, mockTransactionId, *result.id)
 	})
 }
@@ -65,8 +65,7 @@ func TestSessionEndSession(t *testing.T) {
 		session := session{mockSessionService, mockLogger}
 
 		err := session.endSession(context.Background())
-
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -87,7 +86,6 @@ func TestSessionExecute(t *testing.T) {
 			}
 			return 3, nil
 		})
-
 		assert.Nil(t, err)
 		assert.Equal(t, 3, result)
 	})

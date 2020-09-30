@@ -16,6 +16,7 @@ package qldbdriver
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/amzn/ion-go/ion"
@@ -46,6 +47,7 @@ type QLDBDriver struct {
 	semaphore                 *semaphore
 	sessionPool               chan *session
 	retryPolicy               RetryPolicy
+	lock                      sync.Mutex
 }
 
 type semaphore struct {
@@ -56,7 +58,7 @@ type semaphore struct {
 //
 // Note that qldbSession.Client.Config.MaxRetries will be set to 0. This property should not be modified.
 // DriverOptions.RetryLimit is unrelated to this property, but should be used if it is desired to modify the amount of retires for statement executions.
-func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) *QLDBDriver {
+func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) (*QLDBDriver, error) {
 	retryPolicy := RetryPolicy{
 		MaxRetryLimit: 4,
 		Backoff:       ExponentialBackoffStrategy{SleepBase: time.Duration(10) * time.Millisecond, SleepCap: time.Duration(5000) * time.Millisecond}}
@@ -66,7 +68,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 		fn(options)
 	}
 	if options.MaxConcurrentTransactions < 1 {
-		panic("MaxConcurrentTransactions must be 1 or greater.")
+		return nil, &QLDBDriverError{"MaxConcurrentTransactions must be 1 or greater."}
 	}
 
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
@@ -78,7 +80,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	isClosed := false
 
 	return &QLDBDriver{ledgerName, qldbSession, options.MaxConcurrentTransactions, logger, isClosed,
-		semaphore, sessionPool, options.RetryPolicy}
+		semaphore, sessionPool, options.RetryPolicy, sync.Mutex{}}, nil
 }
 
 // SetRetryPolicy sets the driver's retry policy for Execute.
@@ -92,7 +94,7 @@ func (driver *QLDBDriver) SetRetryPolicy(rp RetryPolicy) {
 // It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	if driver.isClosed {
-		panic("Cannot invoke methods on a closed QLDBDriver.")
+		return nil, &QLDBDriverError{"Cannot invoke methods on a closed QLDBDriver."}
 	}
 
 	retryAttempt := 0
@@ -144,7 +146,7 @@ func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) 
 					}
 				}
 			}
-			time.Sleep(driver.retryPolicy.Backoff.Delay(RetryPolicyContext{RetryAttempt: retryAttempt, RetriedError: txnErr.unwrap()}))
+			time.Sleep(driver.retryPolicy.Backoff.Delay(retryAttempt))
 			continue
 		}
 		driver.releaseSession(session)
@@ -166,17 +168,16 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 			return nil, err
 		}
 		tableNames := make([]string, 0)
-		for result.HasNext() {
-			ionBinary, err := result.Next(txn)
+		for result.Next(txn) {
+			nameStruct := new(tableName)
+			err = ion.Unmarshal(result.GetCurrentData(), &nameStruct)
 			if err != nil {
 				return nil, err
 			}
-			nameStruct := new(tableName)
-			ionErr := ion.Unmarshal(ionBinary, &nameStruct)
-			if ionErr != nil {
-				return nil, ionErr
-			}
 			tableNames = append(tableNames, nameStruct.Name)
+		}
+		if result.Err() != nil {
+			return nil, result.Err()
 		}
 		return tableNames, nil
 	})
@@ -186,8 +187,10 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 	return executeResult.([]string), nil
 }
 
-// Close the driver, cleaning up allocated resources.
-func (driver *QLDBDriver) Close(ctx context.Context) {
+// Shutdown the driver, cleaning up allocated resources.
+func (driver *QLDBDriver) Shutdown(ctx context.Context) {
+	driver.lock.Lock()
+	defer driver.lock.Unlock()
 	if !driver.isClosed {
 		driver.isClosed = true
 		for len(driver.sessionPool) > 0 {
@@ -205,13 +208,6 @@ func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
 	driver.logger.logf(LogDebug, "Getting session. Existing sessions available: %v", len(driver.sessionPool))
 	isPermitAcquired := driver.semaphore.tryAcquire()
 	if isPermitAcquired {
-		defer func(driver *QLDBDriver) {
-			if r := recover(); r != nil {
-				driver.logger.logf(LogDebug, "Encountered panic with message: '%v'", r)
-				driver.semaphore.release()
-				panic(r)
-			}
-		}(driver)
 		if len(driver.sessionPool) > 0 {
 			session := <-driver.sessionPool
 			driver.logger.log(LogDebug, "Reusing session from pool.")

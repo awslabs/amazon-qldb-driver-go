@@ -24,8 +24,11 @@ import (
 
 // Transaction represents an active QLDB transaction.
 type Transaction interface {
+	// Execute a statement with any parameters within this transaction.
 	Execute(statement string, parameters ...interface{}) (*Result, error)
+	// Buffer a Result into a BufferedResult to use outside the context of this transaction.
 	BufferResult(result *Result) (*BufferedResult, error)
+	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
 }
 
@@ -47,19 +50,27 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 		if err != nil {
 			return nil, err
 		}
-		executeHash = executeHash.dot(parameterHash)
+		executeHash, err = executeHash.dot(parameterHash)
+		if err != nil {
+			return nil, err
+		}
+
 		// Can ignore error here since toQLDBHash calls MarshalBinary already
 		ionBinary, _ := ion.MarshalBinary(parameter)
 		valueHolder := qldbsession.ValueHolder{IonBinary: ionBinary}
 		valueHolders[i] = &valueHolder
 	}
-	txn.commitHash = txn.commitHash.dot(executeHash)
+	commitHash, err := txn.commitHash.dot(executeHash)
+	if err != nil {
+		return nil, err
+	}
+	txn.commitHash = commitHash
 
 	executeResult, err := txn.communicator.executeStatement(ctx, &statement, valueHolders, txn.id)
 	if err != nil {
 		return nil, err
 	}
-	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger}, nil
+	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, nil}, nil
 }
 
 func (txn *transaction) commit(ctx context.Context) error {
@@ -90,14 +101,13 @@ func (executor *transactionExecutor) Execute(statement string, parameters ...int
 // Buffer a Result into a BufferedResult to use outside the context of this transaction.
 func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
-	for result.HasNext() {
-		ionBinary, err := result.Next(executor)
-		if err != nil {
-			return nil, err
-		}
-		bufferedResults = append(bufferedResults, ionBinary)
+	for result.Next(executor) {
+		bufferedResults = append(bufferedResults, result.GetCurrentData())
 	}
-	return &BufferedResult{bufferedResults, 0}, nil
+	if result.Err() != nil {
+		return nil, result.Err()
+	}
+	return &BufferedResult{bufferedResults, 0, nil}, nil
 }
 
 // Abort the transaction, discarding any previous statement executions within this transaction.
