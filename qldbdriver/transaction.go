@@ -24,8 +24,11 @@ import (
 
 // Transaction represents an active QLDB transaction.
 type Transaction interface {
+	// Execute a statement with any parameters within this transaction.
 	Execute(statement string, parameters ...interface{}) (*Result, error)
+	// Buffer a Result into a BufferedResult to use outside the context of this transaction.
 	BufferResult(result *Result) (*BufferedResult, error)
+	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
 }
 

@@ -20,6 +20,7 @@ import (
 
 // Interface for a logger that can be used with QLDBDriver.
 type Logger interface {
+	// Log the message using the built-in Golang logging package.
 	Log(message string)
 }
 
