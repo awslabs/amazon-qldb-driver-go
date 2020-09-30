@@ -47,13 +47,21 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 		if err != nil {
 			return nil, err
 		}
-		executeHash = executeHash.dot(parameterHash)
+		executeHash, err = executeHash.dot(parameterHash)
+		if err != nil {
+			return nil, err
+		}
+
 		// Can ignore error here since toQLDBHash calls MarshalBinary already
 		ionBinary, _ := ion.MarshalBinary(parameter)
 		valueHolder := qldbsession.ValueHolder{IonBinary: ionBinary}
 		valueHolders[i] = &valueHolder
 	}
-	txn.commitHash = txn.commitHash.dot(executeHash)
+	commitHash, err := txn.commitHash.dot(executeHash)
+	if err != nil {
+		return nil, err
+	}
+	txn.commitHash = commitHash
 
 	executeResult, err := txn.communicator.executeStatement(ctx, &statement, valueHolders, txn.id)
 	if err != nil {
