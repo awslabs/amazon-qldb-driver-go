@@ -200,11 +200,11 @@ func TestTransactionExecutor(t *testing.T) {
 			testResult.communicator = mockService
 
 			bufferedResult, err := testExecutor.BufferResult(&testResult)
-			assert.NoError(t, err)
-			value, _ := bufferedResult.Next()
-			assert.Equal(t, mockIonBinary, value)
-			value, _ = bufferedResult.Next()
-			assert.Equal(t, mockNextIonBinary, value)
+			assert.Nil(t, err)
+			assert.True(t, bufferedResult.Next())
+			assert.Equal(t, mockIonBinary, bufferedResult.GetCurrentData())
+			assert.True(t, bufferedResult.Next())
+			assert.Equal(t, mockNextIonBinary, bufferedResult.GetCurrentData())
 		})
 
 		t.Run("error", func(t *testing.T) {

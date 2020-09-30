@@ -47,44 +47,18 @@ func TestResult(t *testing.T) {
 		logger:       nil,
 	}
 
-	t.Run("HasNext", func(t *testing.T) {
-		t.Run("pageToken is nil", func(t *testing.T) {
-			result.index = 0
-			result.pageToken = nil
-
-			assert.True(t, result.HasNext())
-			// Consume first value
-			result.Next(&transactionExecutor{nil, nil})
-			// No second value or page to fetch
-			assert.False(t, result.HasNext())
-		})
-
-		t.Run("pageToken present", func(t *testing.T) {
-			mockToken := "mockToken"
-			// Reset index
-			result.index = 0
-			result.pageToken = &mockToken
-
-			assert.True(t, result.HasNext())
-			// Consume first value
-			result.Next(&transactionExecutor{nil, nil})
-			// No second value but has page to fetch
-			assert.True(t, result.HasNext())
-		})
-	})
-
 	t.Run("Next", func(t *testing.T) {
 		t.Run("pageToken is nil", func(t *testing.T) {
 			result.index = 0
 			result.pageToken = nil
 
-			ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-			assert.NoError(t, err)
-			assert.Equal(t, mockIonBinary, ionBinary)
+			assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+			assert.Equal(t, mockIonBinary, result.GetCurrentData())
+
 			// No more values
-			ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-			assert.Nil(t, ionBinary)
-			assert.Error(t, err)
+			assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+			assert.Nil(t, result.GetCurrentData())
+			assert.NoError(t, result.Err())
 		})
 
 		t.Run("pageToken present", func(t *testing.T) {
@@ -100,17 +74,17 @@ func TestResult(t *testing.T) {
 				result.communicator = mockService
 
 				// Default page
-				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-				assert.NoError(t, err)
-				assert.Equal(t, mockIonBinary, ionBinary)
+				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Equal(t, mockIonBinary, result.GetCurrentData())
+
 				// Fetched page
-				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-				assert.NoError(t, err)
-				assert.Equal(t, mockNextIonBinary, ionBinary)
+				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Equal(t, mockNextIonBinary, result.GetCurrentData())
+
 				// No more results
-				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, ionBinary)
-				assert.Error(t, err)
+				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Nil(t, result.GetCurrentData())
+				assert.NoError(t, result.Err())
 			})
 
 			t.Run("fail", func(t *testing.T) {
@@ -122,13 +96,13 @@ func TestResult(t *testing.T) {
 				result.communicator = mockService
 
 				// Default page
-				ionBinary, err := result.Next(&transactionExecutor{nil, nil})
-				assert.NoError(t, err)
-				assert.Equal(t, mockIonBinary, ionBinary)
+				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Equal(t, mockIonBinary, result.GetCurrentData())
+
 				// Fetched page
-				ionBinary, err = result.Next(&transactionExecutor{nil, nil})
-				assert.Nil(t, ionBinary)
-				assert.Equal(t, mockError, err)
+				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Nil(t, result.GetCurrentData())
+				assert.Equal(t, mockError, result.Err())
 			})
 		})
 	})
@@ -144,30 +118,18 @@ func TestBufferedResult(t *testing.T) {
 	byteSliceSlice[1] = byteSlice2
 	result := BufferedResult{values: byteSliceSlice, index: 0}
 
-	t.Run("HasNext", func(t *testing.T) {
-		// byteSlice1
-		assert.True(t, result.HasNext())
-		result.Next()
-		// byteSlice2
-		assert.True(t, result.HasNext())
-		result.Next()
-		// End of slice
-		assert.False(t, result.HasNext())
-	})
-
 	t.Run("Next", func(t *testing.T) {
 		result.index = 0
 
-		byteSlice, err := result.Next()
-		assert.NoError(t, err)
-		assert.Equal(t, byteSlice1, byteSlice)
-		byteSlice, err = result.Next()
-		assert.NoError(t, err)
-		assert.Equal(t, byteSlice2, byteSlice)
+		assert.True(t, result.Next())
+		assert.Equal(t, byteSlice1, result.GetCurrentData())
+
+		assert.True(t, result.Next())
+		assert.Equal(t, byteSlice2, result.GetCurrentData())
+
 		// End of slice
-		byteSlice, err = result.Next()
-		assert.Nil(t, byteSlice)
-		assert.Error(t, err)
+		assert.False(t, result.Next())
+		assert.Nil(t, result.GetCurrentData())
 	})
 }
 
