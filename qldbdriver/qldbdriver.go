@@ -22,7 +22,6 @@ import (
 	"github.com/amzn/ion-go/ion"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
-	"github.com/youtube/vitess/go/sync2"
 )
 
 // DriverOptions can be used to configure the driver during construction.
@@ -45,10 +44,14 @@ type QLDBDriver struct {
 	maxConcurrentTransactions int
 	logger                    *qldbLogger
 	isClosed                  bool
-	semaphore                 *sync2.Semaphore
+	semaphore                 *semaphore
 	sessionPool               chan *session
 	retryPolicy               RetryPolicy
 	lock                      sync.Mutex
+}
+
+type semaphore struct {
+	values chan struct{}
 }
 
 // New creates a QLBDDriver using the parameters and options, and verifies the configuration.
@@ -72,7 +75,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	qldbSDKRetries := 0
 	qldbSession.Client.Config.MaxRetries = &qldbSDKRetries
 
-	semaphore := sync2.NewSemaphore(int(options.MaxConcurrentTransactions), 0)
+	semaphore := makeSemaphore(int(options.MaxConcurrentTransactions))
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
 
@@ -119,7 +122,7 @@ func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) 
 				if txnErr.abortSuccess {
 					driver.releaseSession(session)
 				} else {
-					driver.semaphore.Release()
+					driver.semaphore.release()
 				}
 				return nil, txnErr.unwrap()
 			}
@@ -136,7 +139,7 @@ func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) 
 			} else {
 				if !txnErr.abortSuccess {
 					driver.logger.log(LogDebug, "Retrying with a different session...")
-					driver.semaphore.Release()
+					driver.semaphore.release()
 					session, err = driver.getSession(ctx)
 					if err != nil {
 						return nil, err
@@ -205,7 +208,7 @@ func (driver *QLDBDriver) Shutdown(ctx context.Context) {
 
 func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
 	driver.logger.logf(LogDebug, "Getting session. Existing sessions available: %v", len(driver.sessionPool))
-	isPermitAcquired := driver.semaphore.TryAcquire()
+	isPermitAcquired := driver.semaphore.tryAcquire()
 	if isPermitAcquired {
 		if len(driver.sessionPool) > 0 {
 			session := <-driver.sessionPool
@@ -221,7 +224,7 @@ func (driver *QLDBDriver) createSession(ctx context.Context) (*session, error) {
 	driver.logger.log(LogDebug, "Creating a new session")
 	communicator, err := startSession(ctx, driver.ledgerName, driver.qldbSession, driver.logger)
 	if err != nil {
-		driver.semaphore.Release()
+		driver.semaphore.release()
 		return nil, err
 	}
 	return &session{communicator, driver.logger}, nil
@@ -229,7 +232,7 @@ func (driver *QLDBDriver) createSession(ctx context.Context) (*session, error) {
 
 func (driver *QLDBDriver) releaseSession(session *session) {
 	driver.sessionPool <- session
-	driver.semaphore.Release()
+	driver.semaphore.release()
 	driver.logger.logf(LogDebug, "Session returned to pool; size of pool is now %v", len(driver.sessionPool))
 }
 
@@ -238,4 +241,25 @@ func sleepWithContext(ctx context.Context, delay time.Duration) {
 	case <-ctx.Done():
 	case <-time.After(delay):
 	}
+}
+
+func makeSemaphore(size int) *semaphore {
+	smphr := &semaphore{make(chan struct{}, size)}
+	for counter := 0; counter < size; counter++ {
+		smphr.values <- struct{}{}
+	}
+	return smphr
+}
+
+func (smphr *semaphore) tryAcquire() bool {
+	select {
+	case _, ok := <-smphr.values:
+		return ok
+	default:
+		return false
+	}
+}
+
+func (smphr *semaphore) release() {
+	smphr.values <- struct{}{}
 }
