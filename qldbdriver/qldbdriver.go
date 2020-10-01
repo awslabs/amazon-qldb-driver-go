@@ -146,7 +146,9 @@ func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) 
 					}
 				}
 			}
-			time.Sleep(driver.retryPolicy.Backoff.Delay(retryAttempt))
+
+			delay := driver.retryPolicy.Backoff.Delay(retryAttempt)
+			sleepWithContext(ctx, delay)
 			continue
 		}
 		driver.releaseSession(session)
@@ -232,6 +234,13 @@ func (driver *QLDBDriver) releaseSession(session *session) {
 	driver.sessionPool <- session
 	driver.semaphore.release()
 	driver.logger.logf(LogDebug, "Session returned to pool; size of pool is now %v", len(driver.sessionPool))
+}
+
+func sleepWithContext(ctx context.Context, delay time.Duration) {
+	select {
+	case <-ctx.Done():
+	case <-time.After(delay):
+	}
 }
 
 func makeSemaphore(size int) *semaphore {
