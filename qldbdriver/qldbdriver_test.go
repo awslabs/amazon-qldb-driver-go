@@ -17,6 +17,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/amzn/ion-go/ion"
 	"github.com/aws/aws-sdk-go/aws/awserr"
