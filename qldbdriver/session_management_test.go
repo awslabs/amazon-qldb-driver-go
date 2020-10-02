@@ -17,6 +17,7 @@ package qldbdriver
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -85,10 +86,10 @@ func TestSessionManagementIntegration(t *testing.T) {
 
 		for i := 0; i < 3; i++ {
 			errs.Go(func() error {
-				testBase.logger.Log("start " + string(i))
+				testBase.logger.Log("start " + strconv.Itoa(i))
 				_, err := driver.GetTableNames(ctx)
 				time.Sleep(1 * time.Second)
-				testBase.logger.Log("end " + string(i))
+				testBase.logger.Log("end " + strconv.Itoa(i))
 				return err
 			})
 		}
