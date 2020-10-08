@@ -32,7 +32,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	//setup
+	// setup
 	testBase := createTestBase()
 	testBase.deleteLedger(t)
 	testBase.createLedger(t)
@@ -95,7 +95,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 
 		err = errs.Wait()
 		assert.Error(t, err)
-		driverErr, ok := err.(*QLDBDriverError)
+		driverErr, ok := err.(*Error)
 		assert.True(t, ok)
 		assert.Error(t, driverErr)
 	})
@@ -109,6 +109,6 @@ func TestSessionManagementIntegration(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	//cleanup
+	// cleanup
 	testBase.deleteLedger(t)
 }

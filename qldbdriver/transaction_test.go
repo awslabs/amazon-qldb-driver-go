@@ -24,7 +24,7 @@ import (
 
 func TestTransaction(t *testing.T) {
 	t.Run("execute", func(t *testing.T) {
-		mockHash, _ := toQLDBHash(mockTxnId)
+		mockHash, _ := toQLDBHash(mockTxnID)
 		mockNextPageToken := "mockToken"
 		var mockPageValues []*qldbsession.ValueHolder
 		mockFirstPage := qldbsession.Page{
@@ -37,7 +37,7 @@ func TestTransaction(t *testing.T) {
 
 		testTransaction := &transaction{
 			communicator: nil,
-			id:           &mockTxnId,
+			id:           &mockTxnID,
 			logger:       nil,
 			commitHash:   mockHash,
 		}
@@ -51,7 +51,7 @@ func TestTransaction(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, testTransaction.communicator, result.communicator)
-			assert.Equal(t, testTransaction.id, result.txnId)
+			assert.Equal(t, testTransaction.id, result.txnID)
 			assert.Equal(t, &mockNextPageToken, result.pageToken)
 			assert.Equal(t, mockPageValues, result.pageValues)
 		})
@@ -69,7 +69,7 @@ func TestTransaction(t *testing.T) {
 	})
 
 	t.Run("commit", func(t *testing.T) {
-		mockTxnId := "mockId"
+		mockTxnID := "mockId"
 
 		mockHash1 := make([]byte, 1)
 		mockHash1[0] = 0
@@ -81,7 +81,7 @@ func TestTransaction(t *testing.T) {
 
 		testTransaction := &transaction{
 			communicator: nil,
-			id:           &mockTxnId,
+			id:           &mockTxnID,
 			logger:       nil,
 			commitHash:   &qldbHash{hash: mockHash1},
 		}
@@ -114,12 +114,12 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestTransactionExecutor(t *testing.T) {
-	mockId := "txnId"
-	mockHash, _ := toQLDBHash(mockTxnId)
+	mockID := "txnID"
+	mockHash, _ := toQLDBHash(mockTxnID)
 
 	mockTransaction := transaction{
 		communicator: nil,
-		id:           &mockId,
+		id:           &mockID,
 		logger:       mockLogger,
 		commitHash:   mockHash,
 	}
@@ -149,7 +149,7 @@ func TestTransactionExecutor(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, mockTransaction.communicator, result.communicator)
-			assert.Equal(t, mockTransaction.id, result.txnId)
+			assert.Equal(t, mockTransaction.id, result.txnID)
 			assert.Equal(t, &mockNextPageToken, result.pageToken)
 			assert.Equal(t, mockPageValues, result.pageValues)
 		})
@@ -187,7 +187,7 @@ func TestTransactionExecutor(t *testing.T) {
 		testResult := Result{
 			ctx:          context.Background(),
 			communicator: nil,
-			txnId:        &mockId,
+			txnID:        &mockID,
 			pageValues:   mockPageValues,
 			pageToken:    &mockPageToken,
 			index:        0,
@@ -232,30 +232,30 @@ type mockTransactionService struct {
 	mock.Mock
 }
 
-func (m mockTransactionService) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
+func (m *mockTransactionService) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(*qldbsession.AbortTransactionResult), args.Error(1)
 }
 
-func (m mockTransactionService) commitTransaction(ctx context.Context, txnId *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
-	args := m.Called(ctx, txnId, commitDigest)
+func (m *mockTransactionService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
+	args := m.Called(ctx, txnID, commitDigest)
 	return args.Get(0).(*qldbsession.CommitTransactionResult), args.Error(1)
 }
 
-func (m mockTransactionService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnId *string) (*qldbsession.ExecuteStatementResult, error) {
-	args := m.Called(ctx, statement, parameters, txnId)
+func (m *mockTransactionService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnID *string) (*qldbsession.ExecuteStatementResult, error) {
+	args := m.Called(ctx, statement, parameters, txnID)
 	return args.Get(0).(*qldbsession.ExecuteStatementResult), args.Error(1)
 }
 
-func (m mockTransactionService) endSession(ctx context.Context) (*qldbsession.EndSessionResult, error) {
+func (m *mockTransactionService) endSession(ctx context.Context) (*qldbsession.EndSessionResult, error) {
 	panic("not used")
 }
 
-func (m mockTransactionService) fetchPage(ctx context.Context, pageToken *string, txnId *string) (*qldbsession.FetchPageResult, error) {
-	args := m.Called(ctx, pageToken, txnId)
+func (m *mockTransactionService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*qldbsession.FetchPageResult, error) {
+	args := m.Called(ctx, pageToken, txnID)
 	return args.Get(0).(*qldbsession.FetchPageResult), args.Error(1)
 }
 
-func (m mockTransactionService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
+func (m *mockTransactionService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
 	panic("not used")
 }

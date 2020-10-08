@@ -59,7 +59,7 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, createdDriver.maxConcurrentTransactions, defaultMaxConcurrentTransactions)
 		assert.Equal(t, createdDriver.retryPolicy.MaxRetryLimit, defaultRetry)
 		assert.Equal(t, createdDriver.isClosed, false)
-		assert.Equal(t, cap(createdDriver.sessionPool), int(defaultMaxConcurrentTransactions))
+		assert.Equal(t, cap(createdDriver.sessionPool), defaultMaxConcurrentTransactions)
 		assert.Equal(t, createdDriver.qldbSession, qldbSession)
 		assert.Equal(t, 0, *qldbSession.Client.Config.MaxRetries)
 	})
@@ -236,7 +236,7 @@ func TestExecute(t *testing.T) {
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
 		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnId, CommitDigest: hash}
+		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
@@ -279,7 +279,7 @@ func TestExecute(t *testing.T) {
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
 		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnId, CommitDigest: hash}
+		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
@@ -320,7 +320,7 @@ func TestExecute(t *testing.T) {
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
 		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnId, CommitDigest: hash}
+		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
@@ -361,7 +361,7 @@ func TestExecute(t *testing.T) {
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
 		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnId, CommitDigest: hash}
+		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
@@ -403,7 +403,7 @@ func TestExecute(t *testing.T) {
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
 		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnId, CommitDigest: hash}
+		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 
 		testISE := awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil)
@@ -629,7 +629,7 @@ func TestSessionPoolCapacity(t *testing.T) {
 		session3, err := testDriver.getSession(context.Background())
 		assert.Error(t, err)
 		assert.Nil(t, session3)
-		qldbErr := err.(*QLDBDriverError)
+		qldbErr := err.(*Error)
 		assert.Error(t, qldbErr)
 
 		testDriver.releaseSession(session1)
@@ -684,8 +684,8 @@ func TestCreateSession(t *testing.T) {
 var mockLedgerName = "someLedgerName"
 var defaultMaxConcurrentTransactions = 50
 var defaultRetry = 4
-var mockTxnId = "12341"
-var mockStartTransactionWithID = qldbsession.StartTransactionResult{TransactionId: &mockTxnId}
+var mockTxnID = "12341"
+var mockStartTransactionWithID = qldbsession.StartTransactionResult{TransactionId: &mockTxnID}
 
 var mockSendCommandWithTxID = qldbsession.SendCommandOutput{
 	AbortTransaction:  &mockAbortTransaction,
