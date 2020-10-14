@@ -80,7 +80,7 @@ func (txn *transaction) commit(ctx context.Context) error {
 	}
 
 	if !reflect.DeepEqual(commitResult.CommitDigest, txn.commitHash.hash) {
-		return &QLDBDriverError{
+		return &Error{
 			errorMessage: "Transaction's commit digest did not match returned value from QLDB. Please retry with a new transaction.",
 		}
 	}

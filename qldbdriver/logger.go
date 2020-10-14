@@ -18,7 +18,7 @@ import (
 	"log"
 )
 
-// Interface for a logger that can be used with QLDBDriver.
+// Logger is an interface for a QLDBDriver logger.
 type Logger interface {
 	// Log the message using the built-in Golang logging package.
 	Log(message string)
@@ -28,11 +28,11 @@ type Logger interface {
 type LogLevel uint8
 
 const (
-	// Log nothing.
+	// LogOff is for logging nothing.
 	LogOff LogLevel = iota
-	// Log informative events. This is the default logging level.
+	// LogInfo is for logging informative events. This is the default logging level.
 	LogInfo
-	// Log information useful for closely tracing the operation of the QLDBDriver.
+	// LogDebug is for logging information useful for closely tracing the operation of the QLDBDriver.
 	LogDebug
 )
 

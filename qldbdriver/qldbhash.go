@@ -80,9 +80,9 @@ func joinHashesPairwise(h1 []byte, h2 []byte) ([]byte, error) {
 
 func hashComparator(h1 []byte, h2 []byte) (int16, error) {
 	if len(h1) != hashSize || len(h2) != hashSize {
-		return 0, &QLDBDriverError{"invalid hash"}
+		return 0, &Error{"invalid hash"}
 	}
-	for i, _ := range h1 {
+	for i := range h1 {
 		// Reverse index for little endianness
 		index := hashSize - 1 - i
 

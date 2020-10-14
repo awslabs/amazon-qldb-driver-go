@@ -48,11 +48,11 @@ const (
 func createTestBase() *testBase {
 	sess, err := AWSSession.NewSession(aws.NewConfig().WithRegion(region))
 	mySession := AWSSession.Must(sess, err)
-	qldb := qldb.New(mySession)
+	client := qldb.New(mySession)
 	logger := defaultLogger{}
 	ledgerName := ledger
 	regionName := region
-	return &testBase{qldb, &ledgerName, &regionName, logger}
+	return &testBase{client, &ledgerName, &regionName, logger}
 }
 
 func (testBase *testBase) createLedger(t *testing.T) {
@@ -67,7 +67,7 @@ func (testBase *testBase) createLedger(t *testing.T) {
 func (testBase *testBase) deleteLedger(t *testing.T) {
 	testBase.logger.Log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName))
 	deletionProtection := false
-	testBase.qldb.UpdateLedger(&qldb.UpdateLedgerInput{DeletionProtection: &deletionProtection, Name: testBase.ledgerName})
+	_, _ = testBase.qldb.UpdateLedger(&qldb.UpdateLedgerInput{DeletionProtection: &deletionProtection, Name: testBase.ledgerName})
 	_, err := testBase.qldb.DeleteLedger(&qldb.DeleteLedgerInput{Name: testBase.ledgerName})
 	if err != nil {
 		if _, ok := err.(*qldb.ResourceNotFoundException); ok {

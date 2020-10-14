@@ -39,6 +39,7 @@ func TestStartSession(t *testing.T) {
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		communicator, err := startSession(context.Background(), "ledgerName", mockSession, mockLogger)
+		assert.NoError(t, err)
 
 		assert.Equal(t, communicator.sessionToken, &mockSessionToken)
 		assert.NoError(t, err)

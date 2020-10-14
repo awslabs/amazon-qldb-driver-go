@@ -68,14 +68,14 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 		fn(options)
 	}
 	if options.MaxConcurrentTransactions < 1 {
-		return nil, &QLDBDriverError{"MaxConcurrentTransactions must be 1 or greater."}
+		return nil, &Error{"MaxConcurrentTransactions must be 1 or greater."}
 	}
 
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
 	qldbSDKRetries := 0
 	qldbSession.Client.Config.MaxRetries = &qldbSDKRetries
 
-	semaphore := makeSemaphore(int(options.MaxConcurrentTransactions))
+	semaphore := makeSemaphore(options.MaxConcurrentTransactions)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
 
@@ -94,7 +94,7 @@ func (driver *QLDBDriver) SetRetryPolicy(rp RetryPolicy) {
 // It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	if driver.isClosed {
-		return nil, &QLDBDriverError{"Cannot invoke methods on a closed QLDBDriver."}
+		return nil, &Error{"Cannot invoke methods on a closed QLDBDriver."}
 	}
 
 	retryAttempt := 0
@@ -104,8 +104,10 @@ func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) 
 		return nil, err
 	}
 
+	var result interface{}
+	var txnErr *txnError
 	for {
-		result, txnErr := session.execute(ctx, fn)
+		result, txnErr = session.execute(ctx, fn)
 		if txnErr != nil {
 			// If initial session is invalid, always retry once
 			if txnErr.canRetry && txnErr.isISE && retryAttempt == 0 {
@@ -152,12 +154,12 @@ func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) 
 			continue
 		}
 		driver.releaseSession(session)
-		return result, nil
+		break
 	}
-	return nil, &QLDBDriverError{"Unexpected error encountered in Execute."}
+	return result, nil
 }
 
-// Return a list of the names of active tables in the ledger.
+// GetTableNames returns a list of the names of active tables in the ledger.
 func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 	const tableNameQuery string = "SELECT name FROM information_schema.user_tables WHERE status = 'ACTIVE'"
 	type tableName struct {
@@ -217,7 +219,7 @@ func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
 		}
 		return driver.createSession(ctx)
 	}
-	return nil, &QLDBDriverError{"MaxConcurrentTransactions limit exceeded."}
+	return nil, &Error{"MaxConcurrentTransactions limit exceeded."}
 }
 
 func (driver *QLDBDriver) createSession(ctx context.Context) (*session, error) {

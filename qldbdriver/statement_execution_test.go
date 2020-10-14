@@ -38,7 +38,7 @@ func contains(slice []string, val string) bool {
 }
 
 func cleanup(driver *QLDBDriver, testTableName string) {
-	driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+	_, _ = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 		return txn.Execute(fmt.Sprintf("DELETE FROM %s", testTableName))
 	})
 }
@@ -48,7 +48,7 @@ func TestStatementExecution(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	//setup
+	// setup
 	testBase := createTestBase()
 	testBase.deleteLedger(t)
 	testBase.createLedger(t)
@@ -56,9 +56,10 @@ func TestStatementExecution(t *testing.T) {
 	qldbDriver, err := testBase.getDriver(ledger, 10, 4)
 	require.NoError(t, err)
 
-	qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+	_, err = qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 		return txn.Execute(fmt.Sprintf("CREATE TABLE %s", testTableName))
 	})
+	require.NoError(t, err)
 
 	executeWithParam := func(ctx context.Context, query string, txn Transaction, parameters ...interface{}) (interface{}, error) {
 		result, err := txn.Execute(query, parameters...)
@@ -216,7 +217,7 @@ func TestStatementExecution(t *testing.T) {
 				decodedResult := ""
 				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
-					return nil, err
+					return nil, decodedErr
 				}
 				return decodedResult, nil
 			}
@@ -256,7 +257,7 @@ func TestStatementExecution(t *testing.T) {
 				decodedResult := ""
 				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
-					return nil, err
+					return nil, decodedErr
 				}
 				return decodedResult, nil
 			}
@@ -298,7 +299,7 @@ func TestStatementExecution(t *testing.T) {
 				decodedResult := "temp"
 				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
-					return nil, err
+					return nil, decodedErr
 				}
 				results = append(results, decodedResult)
 			}
@@ -429,7 +430,8 @@ func TestStatementExecution(t *testing.T) {
 		assert.Equal(t, insertResult.(int), 1)
 
 		executeResult, err := driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-			txn.Execute(fmt.Sprintf("SELECT VALUE %s FROM %s", columnName, testTableName))
+			_, err = txn.Execute(fmt.Sprintf("SELECT VALUE %s FROM %s", columnName, testTableName))
+			assert.NoError(t, err)
 
 			return driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return txn.Execute(fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName), 5)
@@ -546,7 +548,7 @@ func TestStatementExecution(t *testing.T) {
 			})
 		}
 
-		//boolean
+		// boolean
 		type TestTableBoolean struct {
 			Name bool `ion:"Name"`
 		}
@@ -559,7 +561,7 @@ func TestStatementExecution(t *testing.T) {
 			TestTableBoolean{boolParam},
 		)
 
-		//integer
+		// integer
 		type TestTableInt struct {
 			Name int `ion:"Name"`
 		}
@@ -572,7 +574,7 @@ func TestStatementExecution(t *testing.T) {
 			TestTableInt{intParam},
 		)
 
-		//float32
+		// float32
 		type TestTableFloat32 struct {
 			Name float32 `ion:"Name"`
 		}
@@ -586,7 +588,7 @@ func TestStatementExecution(t *testing.T) {
 			TestTableFloat32{float32Param},
 		)
 
-		//float64
+		// float64
 		type TestTableFloat64 struct {
 			Name float64 `ion:"Name"`
 		}
@@ -600,7 +602,7 @@ func TestStatementExecution(t *testing.T) {
 			TestTableFloat64{float64Param},
 		)
 
-		//int slice
+		// int slice
 		type TestTableSlice struct {
 			Name []int `ion:"Name"`
 		}
@@ -613,7 +615,7 @@ func TestStatementExecution(t *testing.T) {
 			TestTableSlice{parameterValue},
 		)
 
-		//string slice
+		// string slice
 		type TestTableSliceString struct {
 			Name []string `ion:"Name"`
 		}
@@ -638,9 +640,10 @@ func TestStatementExecution(t *testing.T) {
 		parameter := TestTable{1}
 
 		insertQuery := fmt.Sprintf("INSERT INTO %s ?", testTableName)
-		updateDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+		_, err = updateDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), insertQuery, txn, parameter)
 		})
+		require.NoError(t, err)
 
 		testUpdateCommon := func(testName, inputQuery, searchQuery string, parameterValue, ionReceiver, parameter interface{}) {
 			t.Run(testName, func(t *testing.T) {
@@ -700,7 +703,7 @@ func TestStatementExecution(t *testing.T) {
 			})
 		}
 
-		//boolean
+		// boolean
 		boolParam := true
 		testUpdateCommon("boolean",
 			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
@@ -710,7 +713,7 @@ func TestStatementExecution(t *testing.T) {
 			boolParam,
 		)
 
-		//integer
+		// integer
 		intParam := 5
 		testUpdateCommon("integer",
 			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
@@ -720,7 +723,7 @@ func TestStatementExecution(t *testing.T) {
 			intParam,
 		)
 
-		//float32
+		// float32
 		var float32Param float32
 		float32Param = math.MaxFloat32
 		testUpdateCommon("float32",
@@ -731,7 +734,7 @@ func TestStatementExecution(t *testing.T) {
 			float32Param,
 		)
 
-		//float64
+		// float64
 		var float64Param float64
 		float64Param = math.MaxFloat64
 		testUpdateCommon("float64",
@@ -742,7 +745,7 @@ func TestStatementExecution(t *testing.T) {
 			float64Param,
 		)
 
-		//int slice
+		// int slice
 		parameterValue := []int{2, 3, 4}
 		testUpdateCommon("slice int",
 			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
@@ -752,7 +755,7 @@ func TestStatementExecution(t *testing.T) {
 			parameterValue,
 		)
 
-		//string slice
+		// string slice
 		stringParam := []string{"Hello", "How", "Are"}
 		testUpdateCommon("slice string",
 			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
@@ -846,7 +849,7 @@ func TestStatementExecution(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	//teardown
+	// teardown
 	qldbDriver.Shutdown(context.Background())
 	testBase.deleteLedger(t)
 }

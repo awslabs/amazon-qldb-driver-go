@@ -23,7 +23,7 @@ import (
 type Result struct {
 	ctx          context.Context
 	communicator qldbService
-	txnId        *string
+	txnID        *string
 	pageValues   []*qldbsession.ValueHolder
 	pageToken    *string
 	index        int
@@ -59,7 +59,7 @@ func (result *Result) Next(txn Transaction) bool {
 }
 
 func (result *Result) getNextPage() error {
-	nextPage, err := result.communicator.fetchPage(result.ctx, result.pageToken, result.txnId)
+	nextPage, err := result.communicator.fetchPage(result.ctx, result.pageToken, result.txnID)
 	if err != nil {
 		return err
 	}

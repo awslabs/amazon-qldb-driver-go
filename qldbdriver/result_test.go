@@ -40,7 +40,7 @@ func TestResult(t *testing.T) {
 	result := &Result{
 		ctx:          nil,
 		communicator: nil,
-		txnId:        nil,
+		txnID:        nil,
 		pageValues:   mockPageValues,
 		pageToken:    nil,
 		index:        0,
@@ -141,11 +141,11 @@ func (m *mockResultService) abortTransaction(ctx context.Context) (*qldbsession.
 	panic("not used")
 }
 
-func (m *mockResultService) commitTransaction(ctx context.Context, txnId *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
+func (m *mockResultService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
 	panic("not used")
 }
 
-func (m *mockResultService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnId *string) (*qldbsession.ExecuteStatementResult, error) {
+func (m *mockResultService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnID *string) (*qldbsession.ExecuteStatementResult, error) {
 	panic("not used")
 }
 
@@ -153,8 +153,8 @@ func (m *mockResultService) endSession(ctx context.Context) (*qldbsession.EndSes
 	panic("not used")
 }
 
-func (m *mockResultService) fetchPage(ctx context.Context, pageToken *string, txnId *string) (*qldbsession.FetchPageResult, error) {
-	args := m.Called(ctx, pageToken, txnId)
+func (m *mockResultService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*qldbsession.FetchPageResult, error) {
+	args := m.Called(ctx, pageToken, txnID)
 	return args.Get(0).(*qldbsession.FetchPageResult), args.Error(1)
 }
 

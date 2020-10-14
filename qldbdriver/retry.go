@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// Interface for implementing a delay before retrying the provided function with a new transaction.
+// BackoffStrategy is an interface for implementing a delay before retrying the provided function with a new transaction.
 type BackoffStrategy interface {
 	// Get the time to delay before retrying, using an exponential function on the retry attempt, and jitter.
 	Delay(retryAttempt int) time.Duration
@@ -43,7 +43,7 @@ type ExponentialBackoffStrategy struct {
 	SleepCap time.Duration
 }
 
-// Get the time to delay before retrying, using an exponential function on the retry attempt, and jitter.
+// Delay gets the time to delay before retrying, using an exponential function on the retry attempt, and jitter.
 func (s ExponentialBackoffStrategy) Delay(retryAttempt int) time.Duration {
 	rand.Seed(time.Now().UTC().UnixNano())
 	jitter := rand.Float64()*0.5 + 0.5

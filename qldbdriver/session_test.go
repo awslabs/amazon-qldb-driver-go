@@ -44,7 +44,7 @@ func TestSessionStartTransaction(t *testing.T) {
 		result, err := session.startTransaction(context.Background())
 
 		assert.NoError(t, err)
-		assert.Equal(t, mockTransactionId, *result.id)
+		assert.Equal(t, mockTransactionID, *result.id)
 	})
 }
 
@@ -283,7 +283,7 @@ func TestSessionExecute(t *testing.T) {
 		assert.Nil(t, result)
 		assert.IsType(t, &txnError{}, err)
 		assert.Equal(t, test500, err.err)
-		assert.Equal(t, mockTransactionId, err.transactionID)
+		assert.Equal(t, mockTransactionID, err.transactionID)
 		assert.False(t, err.isISE)
 		assert.True(t, err.canRetry)
 		assert.True(t, err.abortSuccess)
@@ -308,7 +308,7 @@ func TestSessionExecute(t *testing.T) {
 		assert.Nil(t, result)
 		assert.IsType(t, &txnError{}, err)
 		assert.Equal(t, test500, err.err)
-		assert.Equal(t, mockTransactionId, err.transactionID)
+		assert.Equal(t, mockTransactionID, err.transactionID)
 		assert.False(t, err.isISE)
 		assert.True(t, err.canRetry)
 		assert.False(t, err.abortSuccess)
@@ -430,7 +430,7 @@ func TestSessionExecute(t *testing.T) {
 
 		assert.Nil(t, result)
 		assert.Equal(t, test500, err.err)
-		assert.Equal(t, mockTransactionId, err.transactionID)
+		assert.Equal(t, mockTransactionID, err.transactionID)
 		assert.False(t, err.isISE)
 		assert.True(t, err.canRetry)
 		assert.True(t, err.abortSuccess)
@@ -456,7 +456,7 @@ func TestSessionExecute(t *testing.T) {
 
 		assert.Nil(t, result)
 		assert.Equal(t, test500, err.err)
-		assert.Equal(t, mockTransactionId, err.transactionID)
+		assert.Equal(t, mockTransactionID, err.transactionID)
 		assert.False(t, err.isISE)
 		assert.True(t, err.canRetry)
 		assert.False(t, err.abortSuccess)
@@ -487,16 +487,16 @@ func TestSessionExecute(t *testing.T) {
 	})
 }
 
-var mockTransactionId = "testTransactionIdddddd"
+var mockTransactionID = "testTransactionIdddddd"
 var mockAbortTransactionResult = qldbsession.AbortTransactionResult{}
-var mockStartTransactionResult = qldbsession.StartTransactionResult{TransactionId: &mockTransactionId}
+var mockStartTransactionResult = qldbsession.StartTransactionResult{TransactionId: &mockTransactionID}
 var mockEndSessionResult = qldbsession.EndSessionResult{}
 var mockExecuteResult = qldbsession.ExecuteStatementResult{
 	FirstPage: &qldbsession.Page{},
 }
 var mockHash = []byte{73, 10, 104, 87, 43, 252, 182, 60, 142, 193, 0, 77, 158, 129, 52, 84, 126, 196, 120, 55, 241, 253, 113, 114, 114, 53, 233, 223, 234, 227, 191, 172}
 var mockCommitTransactionResult = qldbsession.CommitTransactionResult{
-	TransactionId: &mockTransactionId,
+	TransactionId: &mockTransactionID,
 	CommitDigest:  mockHash,
 }
 
@@ -509,31 +509,31 @@ type mockSessionService struct {
 	mock.Mock
 }
 
-func (m mockSessionService) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
+func (m *mockSessionService) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(*qldbsession.AbortTransactionResult), args.Error(1)
 }
 
-func (m mockSessionService) commitTransaction(ctx context.Context, txnId *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
-	args := m.Called(ctx, txnId, commitDigest)
+func (m *mockSessionService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
+	args := m.Called(ctx, txnID, commitDigest)
 	return args.Get(0).(*qldbsession.CommitTransactionResult), args.Error(1)
 }
 
-func (m mockSessionService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnId *string) (*qldbsession.ExecuteStatementResult, error) {
-	args := m.Called(ctx, statement, parameters, txnId)
+func (m *mockSessionService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnID *string) (*qldbsession.ExecuteStatementResult, error) {
+	args := m.Called(ctx, statement, parameters, txnID)
 	return args.Get(0).(*qldbsession.ExecuteStatementResult), args.Error(1)
 }
 
-func (m mockSessionService) endSession(ctx context.Context) (*qldbsession.EndSessionResult, error) {
+func (m *mockSessionService) endSession(ctx context.Context) (*qldbsession.EndSessionResult, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(*qldbsession.EndSessionResult), args.Error(1)
 }
 
-func (m mockSessionService) fetchPage(ctx context.Context, pageToken *string, txnId *string) (*qldbsession.FetchPageResult, error) {
+func (m *mockSessionService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*qldbsession.FetchPageResult, error) {
 	panic("not used")
 }
 
-func (m mockSessionService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
+func (m *mockSessionService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(*qldbsession.StartTransactionResult), args.Error(1)
 }
