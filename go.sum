@@ -1,7 +1,7 @@
-github.com/amzn/ion-go v1.0.0 h1:9mubV+ZapUEMN8JAtljmcpApDbtXN4Z2aREPBlz1A2o=
-github.com/amzn/ion-go v1.0.0/go.mod h1:6cXCj/jj1hops6F7AzLtW0VrB1eTCBWZ+e2iFiWwwgU=
-github.com/amzn/ion-hash-go v1.0.0 h1:sY3TBekIJzBGQqrUKZtr55FkrO2sn4f5NSjTz+HfYsc=
-github.com/amzn/ion-hash-go v1.0.0/go.mod h1:LKDYP+cKCBALTtinKltXrtJ5j9GelKIBF+7wHr1AmdA=
+github.com/amzn/ion-go v1.0.1 h1:yF77ma7UT8aNm2B85xJqb4XheC2HaI0b3s/+lZUxVk4=
+github.com/amzn/ion-go v1.0.1/go.mod h1:93Bu1K0O/CDosTCDzJ1cNY7XpdHGAGE2NepHcGsiV70=
+github.com/amzn/ion-hash-go v1.0.1 h1:cKLsrDpOfejrFjDHwAiwgoeS/ZAthSRaAvpr9toHlpo=
+github.com/amzn/ion-hash-go v1.0.1/go.mod h1:oFFuhxbrhONaMxWAq3GNuckuYatNC/lxOwhSNhE0RYA=
 github.com/aws/aws-sdk-go v1.33.20 h1:mtXKHmMQO6o0i2GTjyiVNZGlXqJDCUbiik0OQeMds/o=
 github.com/aws/aws-sdk-go v1.33.20/go.mod h1:5zCpMtNQVjRREroY7sYe8lOMRSxkhG6MZveU8YkpAk0=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
