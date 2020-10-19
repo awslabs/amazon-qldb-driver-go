@@ -629,7 +629,7 @@ func TestSessionPoolCapacity(t *testing.T) {
 		session3, err := testDriver.getSession(context.Background())
 		assert.Error(t, err)
 		assert.Nil(t, session3)
-		qldbErr := err.(*Error)
+		qldbErr := err.(*qldbDriverError)
 		assert.Error(t, qldbErr)
 
 		testDriver.releaseSession(session1)

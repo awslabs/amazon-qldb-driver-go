@@ -68,7 +68,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 		fn(options)
 	}
 	if options.MaxConcurrentTransactions < 1 {
-		return nil, &Error{"MaxConcurrentTransactions must be 1 or greater."}
+		return nil, &qldbDriverError{"MaxConcurrentTransactions must be 1 or greater."}
 	}
 
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
@@ -94,7 +94,7 @@ func (driver *QLDBDriver) SetRetryPolicy(rp RetryPolicy) {
 // It is recommended for it to be idempotent, so that it doesn't have unintended side effects in the case of retries.
 func (driver *QLDBDriver) Execute(ctx context.Context, fn func(txn Transaction) (interface{}, error)) (interface{}, error) {
 	if driver.isClosed {
-		return nil, &Error{"Cannot invoke methods on a closed QLDBDriver."}
+		return nil, &qldbDriverError{"Cannot invoke methods on a closed QLDBDriver."}
 	}
 
 	retryAttempt := 0
@@ -219,7 +219,7 @@ func (driver *QLDBDriver) getSession(ctx context.Context) (*session, error) {
 		}
 		return driver.createSession(ctx)
 	}
-	return nil, &Error{"MaxConcurrentTransactions limit exceeded."}
+	return nil, &qldbDriverError{"MaxConcurrentTransactions limit exceeded."}
 }
 
 func (driver *QLDBDriver) createSession(ctx context.Context) (*session, error) {

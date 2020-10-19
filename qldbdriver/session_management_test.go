@@ -95,7 +95,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 
 		err = errs.Wait()
 		assert.Error(t, err)
-		driverErr, ok := err.(*Error)
+		driverErr, ok := err.(*qldbDriverError)
 		assert.True(t, ok)
 		assert.Error(t, driverErr)
 	})

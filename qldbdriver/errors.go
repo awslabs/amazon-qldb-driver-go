@@ -13,13 +13,13 @@ and limitations under the License.
 
 package qldbdriver
 
-// Error is returned when an error caused by QLDBDriver has occurred.
-type Error struct {
+// qldbDriverError is returned when an error caused by QLDBDriver has occurred.
+type qldbDriverError struct {
 	errorMessage string
 }
 
 // Return the message denoting the cause of the error.
-func (e *Error) Error() string {
+func (e *qldbDriverError) Error() string {
 	return e.errorMessage
 }
 
