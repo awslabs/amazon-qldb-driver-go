@@ -1,5 +1,3 @@
-
-
 # 1.0.0 (2020-11-20)
 
 The release candidate (v1.0.0-rc.1) has been selected as a final release of v1.0.0.
@@ -26,4 +24,3 @@ The release candidate (v1.0.0-rc.1) has been selected as a final release of v1.0
 # 0.1.0 (2020-08-06)
 
 * Preview release of the driver.
-
