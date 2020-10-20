@@ -1,4 +1,4 @@
-# 1.0.0 (2020-11-20)
+# 1.0.0 (2020-10-20)
 
 The release candidate (v1.0.0-rc.1) has been selected as a final release of v1.0.0 with the following change:
 
@@ -6,7 +6,7 @@ The release candidate (v1.0.0-rc.1) has been selected as a final release of v1.0
 
 * `QLDBDriverError` struct is no longer exported and has been updated to `qldbDriverError`.
 
-# 1.0.0-rc.1 (2020-11-06)
+# 1.0.0-rc.1 (2020-10-06)
 
 ## :tada: Enhancements
 
