@@ -13,7 +13,7 @@ See [Accessing Amazon QLDB](https://docs.aws.amazon.com/qldb/latest/developergui
 
 ### Required Golang versions
 
-qldbdriver 1.0.0 requires Golang 1.14 or later.
+qldbdriver 1.0.1 requires Golang 1.14 or later.
 
 Please see the link below for more detail to install Golang:
 
