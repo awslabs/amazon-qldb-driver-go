@@ -1,3 +1,8 @@
+# 1.0.1 (2020-10-27)
+
+* Fixed the dates in this CHANGELOG.md file
+* Updated the driver version in the user agent string to 1.0.1.
+
 # 1.0.0 (2020-10-20)
 
 The release candidate (v1.0.0-rc.1) has been selected as a final release of v1.0.0 with the following change:
