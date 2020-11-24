@@ -92,7 +92,7 @@ func TestResult(t *testing.T) {
 				result.pageToken = &mockToken
 				result.pageValues = mockPageValues
 				mockService := new(mockResultService)
-				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResult, mockError)
+				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResult, errMock)
 				result.communicator = mockService
 
 				// Default page
@@ -102,7 +102,7 @@ func TestResult(t *testing.T) {
 				// Fetched page
 				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
 				assert.Nil(t, result.GetCurrentData())
-				assert.Equal(t, mockError, result.Err())
+				assert.Equal(t, errMock, result.Err())
 			})
 		})
 	})
