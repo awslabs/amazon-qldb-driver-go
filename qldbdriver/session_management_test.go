@@ -51,7 +51,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 	})
 
 	t.Run("Get session when pool doesnt have session and has not hit limit", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 
@@ -61,7 +61,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 	})
 
 	t.Run("Get session when pool has session and has not hit limit", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 
@@ -77,7 +77,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 	})
 
 	t.Run("Get session when pool doesnt have session and has hit limit", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 1, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 1, 4)
 		require.NoError(t, err)
 		driver.Shutdown(context.Background())
 
@@ -101,7 +101,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 	})
 
 	t.Run("Get session when driver is closed", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 1, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 1, 4)
 		require.NoError(t, err)
 		driver.Shutdown(context.Background())
 

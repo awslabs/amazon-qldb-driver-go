@@ -53,7 +53,7 @@ func TestStatementExecution(t *testing.T) {
 	testBase.deleteLedger(t)
 	testBase.createLedger(t)
 
-	qldbDriver, err := testBase.getDriver(ledger, 10, 4)
+	qldbDriver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 	require.NoError(t, err)
 
 	_, err = qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -77,7 +77,7 @@ func TestStatementExecution(t *testing.T) {
 	}
 
 	t.Run("Drop existing table", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 
@@ -104,7 +104,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("List tables", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -115,7 +115,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Create table that exists", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -133,7 +133,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Create index", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -172,7 +172,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Return empty when no records found", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -188,7 +188,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Insert document", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -228,7 +228,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Query table enclosed in quotes", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -268,7 +268,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Insert multiple documents", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -316,7 +316,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Delete single document", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -364,7 +364,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Delete all documents", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
+		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 		defer cleanup(driver, testTableName)
@@ -418,7 +418,7 @@ func TestStatementExecution(t *testing.T) {
 		type TestTable struct {
 			Name string `ion:"Name"`
 		}
-		driver2, err := testBase.getDriver(ledger, 10, 0)
+		driver2, err := testBase.getDriver(*testBase.ledgerName, 10, 0)
 		require.NoError(t, err)
 		record := TestTable{"dummy"}
 
@@ -446,7 +446,7 @@ func TestStatementExecution(t *testing.T) {
 
 	t.Run("Insert and read Ion types", func(t *testing.T) {
 		t.Run("struct", func(t *testing.T) {
-			driver, err := testBase.getDriver(ledger, 10, 4)
+			driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 			require.NoError(t, err)
 			defer driver.Shutdown(context.Background())
 			defer cleanup(driver, testTableName)
@@ -490,7 +490,7 @@ func TestStatementExecution(t *testing.T) {
 
 		testInsertCommon := func(testName, inputQuery, searchQuery string, parameterValue, ionReceiver, parameter interface{}) {
 			t.Run(testName, func(t *testing.T) {
-				driver, err := testBase.getDriver(ledger, 10, 4)
+				driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 				require.NoError(t, err)
 				defer driver.Shutdown(context.Background())
 				defer cleanup(driver, testTableName)
@@ -631,7 +631,7 @@ func TestStatementExecution(t *testing.T) {
 	})
 
 	t.Run("Update Ion types", func(t *testing.T) {
-		updateDriver, err := testBase.getDriver(ledger, 10, 4)
+		updateDriver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 		require.NoError(t, err)
 
 		type TestTable struct {
@@ -647,7 +647,7 @@ func TestStatementExecution(t *testing.T) {
 
 		testUpdateCommon := func(testName, inputQuery, searchQuery string, parameterValue, ionReceiver, parameter interface{}) {
 			t.Run(testName, func(t *testing.T) {
-				driver, err := testBase.getDriver(ledger, 10, 4)
+				driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 				require.NoError(t, err)
 				defer driver.Shutdown(context.Background())
 
@@ -766,7 +766,7 @@ func TestStatementExecution(t *testing.T) {
 		)
 
 		t.Run("nil", func(t *testing.T) {
-			driver, err := testBase.getDriver(ledger, 10, 4)
+			driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 			require.NoError(t, err)
 			defer driver.Shutdown(context.Background())
 
@@ -799,7 +799,7 @@ func TestStatementExecution(t *testing.T) {
 		})
 
 		t.Run("struct", func(t *testing.T) {
-			driver, err := testBase.getDriver(ledger, 10, 4)
+			driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
 			require.NoError(t, err)
 			defer driver.Shutdown(context.Background())
 			defer cleanup(driver, testTableName)
