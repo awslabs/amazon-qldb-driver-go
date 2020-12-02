@@ -12,14 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go_versions: ['1.13', '1.14', '1.15']
+        go_version: ['1.13', '1.14', '1.15']
+        region: ['us-east-1', 'us-east-2', 'us-east-3']
 
     steps:
 
-    - name: Set up Go versions
+    - name: Set up Go version
       uses: actions/setup-go@v1
       with:
-        go-version: ${{ matrix.dotnet }}
+        go-version: ${{ matrix.go_version }}
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
@@ -27,7 +28,7 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-        aws-region: us-east-2
+        aws-region: ${{ matrix.region }}
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2.0.0
