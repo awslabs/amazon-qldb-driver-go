@@ -1,9 +1,5 @@
 name: Go Build
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push, pull_request]
 jobs:
 
   build:
@@ -43,6 +39,7 @@ jobs:
     
     - name: Test with coverage
       run: go test -v ./... -coverprofile coverage.txt
+      
       
     - name: Upload Coverage report to CodeCov
       uses: codecov/codecov-action@v1
