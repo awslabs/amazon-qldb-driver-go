@@ -38,7 +38,7 @@ type testBase struct {
 
 const (
 	ledger                 = "Gotest"
-	region                 = "us-east-1"
+	region                 = "us-east-2"
 	testTableName          = "GoIntegrationTestTable"
 	indexAttribute         = "Name"
 	columnName             = "Name"
