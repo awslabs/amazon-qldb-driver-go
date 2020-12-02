@@ -46,7 +46,7 @@ jobs:
       run: go test -v ./...
 
     - name: Integration Tests
-      run: go test -run Integration
+      run: go test -v ./... -run Integration
   
   imports:
     name: goimports
