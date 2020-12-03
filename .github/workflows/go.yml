@@ -46,7 +46,7 @@ jobs:
     - name: Build
       run: go build -v ./...
     
-    - name: Tests
+    - name: Unit and Integration Tests
       run: go test -v ./...
   
   imports:
