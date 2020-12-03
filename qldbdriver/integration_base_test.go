@@ -17,8 +17,6 @@ package qldbdriver
 
 import (
 	"fmt"
-	"math/rand"
-	"strconv"
 	"testing"
 	"time"
 
@@ -52,7 +50,7 @@ func createTestBase() *testBase {
 	mySession := AWSSession.Must(sess, err)
 	client := qldb.New(mySession)
 	logger := defaultLogger{}
-	ledgerName := ledger + strconv.Itoa(rand.Intn(1000))
+	ledgerName := ledger
 	regionName := region
 	return &testBase{client, &ledgerName, &regionName, logger}
 }
