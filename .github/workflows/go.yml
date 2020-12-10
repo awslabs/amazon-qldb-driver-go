@@ -13,7 +13,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        os: [windows-latest]
+        os: [macos-latest, windows-latest]
         go_version: ['1.13', '1.14', '1.15']
 
     steps:
@@ -40,7 +40,7 @@ jobs:
     - name: Get dependencies
       run: |
         go get -v -t -d ./...
-        if ([ -f Gopkg.toml ];) then
+        if [ -f Gopkg.toml ]; then
             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
             dep ensure
         fi
