@@ -13,7 +13,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [windows-latest]
         go_version: ['1.13', '1.14', '1.15']
 
     steps:
@@ -37,13 +37,13 @@ jobs:
     # - name: Check out submodules
     #   uses: textbook/git-checkout-submodule-action@2.0.0
 
-    - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-        if [ -f Gopkg.toml ]; then
-            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-            dep ensure
-        fi
+    # - name: Get dependencies
+    #   run: |
+    #     go get -v -t -d ./...
+    #     if [ -f Gopkg.toml ]; then
+    #         curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    #         dep ensure
+    #     fi
     - name: Build
       run: go build -v ./...
     
