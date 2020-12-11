@@ -169,7 +169,6 @@ func TestStatementExecution(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-
 			return exprStruct.Expr, nil
 		})
 		assert.NoError(t, searchErr)
