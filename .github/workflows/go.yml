@@ -2,7 +2,7 @@ name: Go Build
 
 on:
   push:
-    branches: [ master, githubActions ]
+    branches: [ master ]
   pull_request:
     branches: [ master ]
 
