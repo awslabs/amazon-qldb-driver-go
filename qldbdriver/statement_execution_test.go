@@ -21,6 +21,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/amzn/ion-go/ion"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
@@ -145,6 +146,9 @@ func TestStatementExecution(t *testing.T) {
 		assert.NoError(t, indexErr)
 		assert.Equal(t, 1, indexResult.(int))
 
+		// Wait for above index to be created before querying index
+		time.Sleep(5 * time.Second)
+
 		searchQuery := "SELECT VALUE indexes[0] FROM information_schema.user_tables WHERE status = 'ACTIVE' "
 		searchQuery += fmt.Sprintf("AND name = '%s'", testTableName)
 
@@ -165,8 +169,6 @@ func TestStatementExecution(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-
-			assert.NotNil(t, exprStruct.Expr)
 
 			return exprStruct.Expr, nil
 		})
