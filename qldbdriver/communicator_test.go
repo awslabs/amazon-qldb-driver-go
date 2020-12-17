@@ -28,10 +28,10 @@ import (
 func TestStartSession(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		communicator, err := startSession(context.Background(), "ledgerName", mockSession, mockLogger)
 
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, communicator)
 	})
 
@@ -55,11 +55,11 @@ func TestAbortTransaction(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.abortTransaction(context.Background())
 
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, result)
 	})
 
@@ -83,11 +83,11 @@ func TestCommitTransaction(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.commitTransaction(context.Background(), nil, nil)
 
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, result)
 	})
 
@@ -111,11 +111,11 @@ func TestExecuteStatement(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.executeStatement(context.Background(), nil, nil, nil)
 
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, result)
 	})
 
@@ -139,11 +139,11 @@ func TestEndSession(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.endSession(context.Background())
 
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, result)
 	})
 
@@ -167,11 +167,11 @@ func TestFetchPage(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.fetchPage(context.Background(), nil, nil)
 
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, result)
 	})
 
@@ -195,11 +195,11 @@ func TestStartTransaction(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.startTransaction(context.Background())
 
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, result)
 	})
 
@@ -221,16 +221,16 @@ func TestSendCommand(t *testing.T) {
 		logger:       mockLogger,
 	}
 	mockSession := new(mockQLDBSession)
-	mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, mockError)
+	mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 	testCommunicator.service = mockSession
 	result, err := testCommunicator.sendCommand(context.Background(), &qldbsession.SendCommandInput{})
 
 	assert.Equal(t, result, &mockSendCommand)
-	assert.Equal(t, err, mockError)
+	assert.Equal(t, err, errMock)
 }
 
 var mockLogger = &qldbLogger{defaultLogger{}, LogOff}
-var mockError = errors.New("mock")
+var errMock = errors.New("mock")
 
 var mockSessionToken = "token"
 var mockStartSession = qldbsession.StartSessionResult{SessionToken: &mockSessionToken}

@@ -108,7 +108,7 @@ func TestExecute(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -120,7 +120,7 @@ func TestExecute(t *testing.T) {
 			}
 			return innerResult, innerErr
 		})
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, result)
 	})
 
@@ -146,14 +146,14 @@ func TestExecute(t *testing.T) {
 
 	t.Run("error get session", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 		testDriver.sessionPool = make(chan *session, 10)
 
 		result, err := testDriver.Execute(context.Background(), nil)
 
 		assert.Nil(t, result)
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 	})
 
 	t.Run("error session execute", func(t *testing.T) {
@@ -467,13 +467,13 @@ func TestGetTableNames(t *testing.T) {
 
 	t.Run("error on Execute", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.GetTableNames(context.Background())
 
 		assert.Nil(t, result)
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -551,12 +551,12 @@ func TestGetSession(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 
 		session, err := testDriver.getSession(context.Background())
 
-		assert.Equal(t, err, mockError)
+		assert.Equal(t, err, errMock)
 		assert.Nil(t, session)
 	})
 
@@ -586,7 +586,7 @@ func TestGetSession(t *testing.T) {
 		testDriver.sessionPool <- session1
 		testDriver.sessionPool <- session2
 
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 
 		testDriver.qldbSession = mockSession
 
@@ -659,14 +659,14 @@ func TestCreateSession(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, mockError)
+		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 
 		testDriver.semaphore.tryAcquire()
 		session, err := testDriver.createSession(context.Background())
 
 		assert.Nil(t, session)
-		assert.Equal(t, mockError, err)
+		assert.Equal(t, errMock, err)
 	})
 
 	t.Run("success", func(t *testing.T) {

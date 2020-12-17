@@ -58,13 +58,13 @@ func TestTransaction(t *testing.T) {
 
 		t.Run("error", func(t *testing.T) {
 			mockService := new(mockTransactionService)
-			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockExecuteResult, mockError)
+			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockExecuteResult, errMock)
 			testTransaction.communicator = mockService
 
 			result, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
 			assert.Error(t, err)
 			assert.Nil(t, result)
-			assert.Equal(t, mockError, err)
+			assert.Equal(t, errMock, err)
 		})
 	})
 
@@ -96,10 +96,10 @@ func TestTransaction(t *testing.T) {
 
 		t.Run("error", func(t *testing.T) {
 			mockService := new(mockTransactionService)
-			mockService.On("commitTransaction", mock.Anything, mock.Anything, mock.Anything).Return(&mockCommitTransactionResult, mockError)
+			mockService.On("commitTransaction", mock.Anything, mock.Anything, mock.Anything).Return(&mockCommitTransactionResult, errMock)
 			testTransaction.communicator = mockService
 
-			assert.Equal(t, mockError, testTransaction.commit(context.Background()))
+			assert.Equal(t, errMock, testTransaction.commit(context.Background()))
 		})
 
 		t.Run("digest mismatch", func(t *testing.T) {
@@ -156,13 +156,13 @@ func TestTransactionExecutor(t *testing.T) {
 
 		t.Run("error", func(t *testing.T) {
 			mockService := new(mockTransactionService)
-			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockExecuteResult, mockError)
+			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockExecuteResult, errMock)
 			mockTransaction.communicator = mockService
 
 			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
 			assert.Error(t, err)
 			assert.Nil(t, result)
-			assert.Equal(t, mockError, err)
+			assert.Equal(t, errMock, err)
 		})
 	})
 
@@ -209,7 +209,7 @@ func TestTransactionExecutor(t *testing.T) {
 
 		t.Run("error", func(t *testing.T) {
 			mockService := new(mockTransactionService)
-			mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResult, mockError)
+			mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResult, errMock)
 			testResult.communicator = mockService
 			// Reset Result state
 			testResult.pageValues = mockPageValues
@@ -218,7 +218,7 @@ func TestTransactionExecutor(t *testing.T) {
 
 			bufferedResult, err := testExecutor.BufferResult(&testResult)
 			assert.Nil(t, bufferedResult)
-			assert.Equal(t, mockError, err)
+			assert.Equal(t, errMock, err)
 		})
 	})
 

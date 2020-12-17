@@ -27,12 +27,12 @@ import (
 func TestSessionStartTransaction(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		mockSessionService := new(mockSessionService)
-		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, mockError)
+		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.startTransaction(context.Background())
 
-		assert.Equal(t, mockError, err)
+		assert.Equal(t, errMock, err)
 		assert.Nil(t, result)
 	})
 
@@ -51,12 +51,12 @@ func TestSessionStartTransaction(t *testing.T) {
 func TestSessionEndSession(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		mockSessionService := new(mockSessionService)
-		mockSessionService.On("endSession", mock.Anything).Return(&mockEndSessionResult, mockError)
+		mockSessionService.On("endSession", mock.Anything).Return(&mockEndSessionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		err := session.endSession(context.Background())
 
-		assert.Equal(t, mockError, err)
+		assert.Equal(t, errMock, err)
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestSessionExecute(t *testing.T) {
 
 	t.Run("startTxnUnknownErrorAbortSuccess", func(t *testing.T) {
 		mockSessionService := new(mockSessionService)
-		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, mockError)
+		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, errMock)
 		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, nil)
 		session := session{mockSessionService, mockLogger}
 
@@ -105,7 +105,7 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err.err)
+		assert.Equal(t, errMock, err.err)
 		assert.False(t, err.isISE)
 		assert.False(t, err.canRetry)
 		assert.True(t, err.abortSuccess)
@@ -113,8 +113,8 @@ func TestSessionExecute(t *testing.T) {
 
 	t.Run("startTxnUnknownErrorAbortErr", func(t *testing.T) {
 		mockSessionService := new(mockSessionService)
-		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, mockError)
-		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, mockError)
+		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, errMock)
+		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -126,7 +126,7 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err.err)
+		assert.Equal(t, errMock, err.err)
 		assert.False(t, err.isISE)
 		assert.False(t, err.canRetry)
 		assert.False(t, err.abortSuccess)
@@ -177,7 +177,7 @@ func TestSessionExecute(t *testing.T) {
 	t.Run("startTxn500AbortError", func(t *testing.T) {
 		mockSessionService := new(mockSessionService)
 		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, test500)
-		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, mockError)
+		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -200,7 +200,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSessionService := new(mockSessionService)
 		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, nil)
 		mockSessionService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Return(&mockExecuteResult, mockError)
+			Return(&mockExecuteResult, errMock)
 		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, nil)
 		session := session{mockSessionService, mockLogger}
 
@@ -213,7 +213,7 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err.err)
+		assert.Equal(t, errMock, err.err)
 		assert.False(t, err.isISE)
 		assert.False(t, err.canRetry)
 		assert.True(t, err.abortSuccess)
@@ -223,8 +223,8 @@ func TestSessionExecute(t *testing.T) {
 		mockSessionService := new(mockSessionService)
 		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, nil)
 		mockSessionService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Return(&mockExecuteResult, mockError)
-		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, mockError)
+			Return(&mockExecuteResult, errMock)
+		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -236,7 +236,7 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err.err)
+		assert.Equal(t, errMock, err.err)
 		assert.False(t, err.isISE)
 		assert.False(t, err.canRetry)
 		assert.False(t, err.abortSuccess)
@@ -294,7 +294,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, nil)
 		mockSessionService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(&mockExecuteResult, test500)
-		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, mockError)
+		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -342,7 +342,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, nil)
 		mockSessionService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(&mockExecuteResult, testBadReq)
-		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, mockError)
+		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -366,7 +366,7 @@ func TestSessionExecute(t *testing.T) {
 		mockSessionService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(&mockExecuteResult, nil)
 		mockSessionService.On("commitTransaction", mock.Anything, mock.Anything, mock.Anything).
-			Return(&mockCommitTransactionResult, mockError)
+			Return(&mockCommitTransactionResult, errMock)
 		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, nil)
 		session := session{mockSessionService, mockLogger}
 
@@ -379,7 +379,7 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err.err)
+		assert.Equal(t, errMock, err.err)
 		assert.False(t, err.isISE)
 		assert.False(t, err.canRetry)
 		assert.True(t, err.abortSuccess)
@@ -391,8 +391,8 @@ func TestSessionExecute(t *testing.T) {
 		mockSessionService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(&mockExecuteResult, nil)
 		mockSessionService.On("commitTransaction", mock.Anything, mock.Anything, mock.Anything).
-			Return(&mockCommitTransactionResult, mockError)
-		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, mockError)
+			Return(&mockCommitTransactionResult, errMock)
+		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -404,7 +404,7 @@ func TestSessionExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.Equal(t, mockError, err.err)
+		assert.Equal(t, errMock, err.err)
 		assert.False(t, err.isISE)
 		assert.False(t, err.canRetry)
 		assert.False(t, err.abortSuccess)
@@ -443,7 +443,7 @@ func TestSessionExecute(t *testing.T) {
 			Return(&mockExecuteResult, nil)
 		mockSessionService.On("commitTransaction", mock.Anything, mock.Anything, mock.Anything).
 			Return(&mockCommitTransactionResult, test500)
-		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, mockError)
+		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, errMock)
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
