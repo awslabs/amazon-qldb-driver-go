@@ -47,6 +47,19 @@ func TestResult(t *testing.T) {
 		logger:       nil,
 	}
 
+	mockReadIOs := int64(1)
+	mockWriteIOs := int64(2)
+	mockTimingInfo := int64(3)
+	qldbsessionTimingInformation := generateQldbsessionTimingInformation(&mockTimingInfo)
+	qldbsessionConsumedIOs := generateQldbsessionIOUsage(&mockReadIOs, &mockWriteIOs)
+	timingInformation := generateTimingInformation(&mockTimingInfo)
+	consumedIOs := generateIOUsage(&mockReadIOs, &mockWriteIOs)
+
+	mockFetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
+	mockFetchPageResultWithStats := mockFetchPageResult
+	mockFetchPageResultWithStats.TimingInformation = qldbsessionTimingInformation
+	mockFetchPageResultWithStats.ConsumedIOs = qldbsessionConsumedIOs
+
 	t.Run("Next", func(t *testing.T) {
 		t.Run("pageToken is nil", func(t *testing.T) {
 			result.index = 0
@@ -63,8 +76,6 @@ func TestResult(t *testing.T) {
 
 		t.Run("pageToken present", func(t *testing.T) {
 			mockToken := "mockToken"
-
-			mockFetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
 
 			t.Run("success", func(t *testing.T) {
 				result.index = 0
@@ -87,6 +98,29 @@ func TestResult(t *testing.T) {
 				assert.NoError(t, result.Err())
 			})
 
+			t.Run("query stats are updated", func(t *testing.T) {
+				result.index = 0
+				result.pageToken = &mockToken
+				mockService := new(mockResultService)
+				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResultWithStats, nil)
+				result.communicator = mockService
+
+				var mockTimingInformation *TimingInformation = nil
+				var mockConsumedIOs *IOUsage = nil
+
+				// Default page
+				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Equal(t, mockTimingInformation, result.timingInformation)
+				assert.Equal(t, mockConsumedIOs, result.consumedIOs)
+
+				// Fetched page
+				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.Equal(t, mockTimingInfo, *result.timingInformation.GetProcessingTimeMilliseconds())
+				assert.Equal(t, mockReadIOs, *result.consumedIOs.GetReadIOs())
+				assert.Equal(t, mockWriteIOs, *result.consumedIOs.getWriteIOs())
+
+			})
+
 			t.Run("fail", func(t *testing.T) {
 				result.index = 0
 				result.pageToken = &mockToken
@@ -106,6 +140,46 @@ func TestResult(t *testing.T) {
 			})
 		})
 	})
+
+	t.Run("updateMetrics", func(t *testing.T) {
+		t.Run("result does not have metrics and fetch page has does not have metrics", func(t *testing.T) {
+			result := Result{consumedIOs: nil, timingInformation: nil}
+			result.updateMetrics(&mockFetchPageResult)
+
+			var mockTimingInformation *TimingInformation = nil
+			var mockConsumedIOs *IOUsage = nil
+
+			assert.Equal(t, mockConsumedIOs, result.GetConsumedIOs())
+			assert.Equal(t, mockTimingInformation, result.GetTimingInformation())
+		})
+
+		t.Run("result does not have metrics and fetch page has metrics", func(t *testing.T) {
+			result := Result{consumedIOs: nil, timingInformation: nil}
+			result.updateMetrics(&mockFetchPageResultWithStats)
+
+			assert.Equal(t, mockReadIOs, *result.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, mockWriteIOs, *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, mockTimingInfo, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
+		})
+
+		t.Run("result has metrics and fetch page does not have metrics", func(t *testing.T) {
+			result := Result{consumedIOs: consumedIOs, timingInformation: timingInformation}
+			result.updateMetrics(&mockFetchPageResult)
+
+			assert.Equal(t, mockReadIOs, *result.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, mockWriteIOs, *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, mockTimingInfo, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
+		})
+
+		t.Run("result has metrics and fetch page has metrics", func(t *testing.T) {
+			result := Result{consumedIOs: consumedIOs, timingInformation: timingInformation}
+			result.updateMetrics(&mockFetchPageResultWithStats)
+
+			assert.Equal(t, int64(2), *result.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, int64(4), *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, int64(6), *result.GetTimingInformation().GetProcessingTimeMilliseconds())
+		})
+	})
 }
 
 func TestBufferedResult(t *testing.T) {
@@ -116,7 +190,13 @@ func TestBufferedResult(t *testing.T) {
 	byteSliceSlice := make([][]byte, 2)
 	byteSliceSlice[0] = byteSlice1
 	byteSliceSlice[1] = byteSlice2
-	result := BufferedResult{values: byteSliceSlice, index: 0}
+
+	mockReadIOs := int64(1)
+	mockWriteIOs := int64(2)
+	mockTimingInfo := int64(3)
+	IOUsage := generateIOUsage(&mockReadIOs, &mockWriteIOs)
+	TimingInformation := generateTimingInformation(&mockTimingInfo)
+	result := BufferedResult{values: byteSliceSlice, index: 0, consumedIOs: IOUsage, timingInformation: TimingInformation}
 
 	t.Run("Next", func(t *testing.T) {
 		result.index = 0
@@ -130,6 +210,10 @@ func TestBufferedResult(t *testing.T) {
 		// End of slice
 		assert.False(t, result.Next())
 		assert.Nil(t, result.GetCurrentData())
+
+		assert.Equal(t, mockTimingInfo, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
+		assert.Equal(t, mockReadIOs, *result.GetConsumedIOs().GetReadIOs())
+		assert.Equal(t, mockWriteIOs, *result.GetConsumedIOs().getWriteIOs())
 	})
 }
 
@@ -160,4 +244,30 @@ func (m *mockResultService) fetchPage(ctx context.Context, pageToken *string, tx
 
 func (m *mockResultService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
 	panic("not used")
+}
+
+func generateIOUsage(readIOs *int64, writeIOs *int64) *IOUsage {
+	return &IOUsage{
+		readIOs:  readIOs,
+		writeIOs: writeIOs,
+	}
+}
+
+func generateTimingInformation(processingTimeMilliseconds *int64) *TimingInformation {
+	return &TimingInformation{
+		processingTimeMilliseconds: processingTimeMilliseconds,
+	}
+}
+
+func generateQldbsessionIOUsage(readIOs *int64, writeIOs *int64) *qldbsession.IOUsage {
+	return &qldbsession.IOUsage{
+		ReadIOs:  readIOs,
+		WriteIOs: writeIOs,
+	}
+}
+
+func generateQldbsessionTimingInformation(processingTimeMilliseconds *int64) *qldbsession.TimingInformation {
+	return &qldbsession.TimingInformation{
+		ProcessingTimeMilliseconds: processingTimeMilliseconds,
+	}
 }

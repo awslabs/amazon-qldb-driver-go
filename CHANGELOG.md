@@ -1,3 +1,13 @@
+# 1.1.0
+
+## :tada: Enhancements
+
+* Added `IOUsage` and `TimingInformation` structs to provide server-side execution statistics
+    * `IOUsage` provides `GetReadIOs` method
+    * `TimingInformation` provides `GetProcessingTimeMilliseconds` method
+    * Added `GetConsumedIOs` and `GetTimingInformation` methods in `BufferedResult` and `Result` structs
+    * `GetConsumedIOs` and `GetTimingInformation` methods are stateful, meaning the statistics returned by them reflect the state at the time of method execution.
+
 # 1.0.1 (2020-10-27)
 
 * Fixed the dates in this CHANGELOG.md file

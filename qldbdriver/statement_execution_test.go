@@ -448,6 +448,78 @@ func TestStatementExecution(t *testing.T) {
 		assert.True(t, ok)
 	})
 
+	t.Run("Execution metrics for stream result", func(t *testing.T) {
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
+		defer driver.Shutdown(context.Background())
+		defer cleanup(driver, testTableName)
+
+		// Insert docs
+		_, err = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			return txn.Execute(fmt.Sprintf("INSERT INTO %s << {'col': 1}, {'col': 2}, {'col': 3} >>", testTableName))
+		})
+		require.NoError(t, err)
+
+		selectQuery := fmt.Sprintf("SELECT * FROM %s as a, %s as b, %s as c, %s as d, %s as e, %s as f",
+			testTableName, testTableName, testTableName, testTableName, testTableName, testTableName)
+
+		_, err = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			result, err := txn.Execute(selectQuery)
+			require.NoError(t, err)
+
+			for result.Next(txn) {
+				// IOUsage test
+				ioUsage := result.GetConsumedIOs()
+				require.NotNil(t, ioUsage)
+				assert.True(t, *ioUsage.GetReadIOs() > 0)
+
+				// TimingInformation test
+				timingInfo := result.GetTimingInformation()
+				require.NotNil(t, timingInfo)
+				assert.True(t, *timingInfo.GetProcessingTimeMilliseconds() > 0)
+			}
+			return nil, nil
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("Execution metrics for buffered result", func(t *testing.T) {
+		driver, err := testBase.getDriver(ledger, 10, 4)
+		require.NoError(t, err)
+		defer driver.Shutdown(context.Background())
+		defer cleanup(driver, testTableName)
+
+		// Insert docs
+		_, err = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			return txn.Execute(fmt.Sprintf("INSERT INTO %s << {'col': 1}, {'col': 2}, {'col': 3} >>", testTableName))
+		})
+		require.NoError(t, err)
+
+		selectQuery := fmt.Sprintf("SELECT * FROM %s as a, %s as b, %s as c, %s as d, %s as e, %s as f",
+			testTableName, testTableName, testTableName, testTableName, testTableName, testTableName)
+
+		result, err := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			streamResult, err := txn.Execute(selectQuery)
+			if err != nil {
+				return nil, err
+			}
+			return txn.BufferResult(streamResult)
+		})
+		require.NoError(t, err)
+
+		bufferedResult := result.(*BufferedResult)
+
+		// IOUsage test
+		ioUsage := bufferedResult.GetConsumedIOs()
+		require.NotNil(t, ioUsage)
+		assert.Equal(t, int64(1092), *ioUsage.GetReadIOs())
+
+		// TimingInformation test
+		timingInfo := bufferedResult.GetTimingInformation()
+		require.NotNil(t, timingInfo)
+		assert.True(t, *timingInfo.GetProcessingTimeMilliseconds() > 0)
+	})
+
 	t.Run("Insert and read Ion types", func(t *testing.T) {
 		t.Run("struct", func(t *testing.T) {
 			driver, err := testBase.getDriver(ledger, 10, 4)

@@ -111,7 +111,7 @@ func (communicator *communicator) startTransaction(ctx context.Context) (*qldbse
 }
 
 func (communicator *communicator) sendCommand(ctx context.Context, command *qldbsession.SendCommandInput) (*qldbsession.SendCommandOutput, error) {
-	const version string = "1.0.1"
+	const version string = "1.1.0"
 	const userAgentString = "QLDB Driver for Golang v" + version
 	command.SetSessionToken(*communicator.sessionToken)
 	communicator.logger.logf(LogDebug, "%v", command)
