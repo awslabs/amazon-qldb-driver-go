@@ -29,9 +29,9 @@ type Result struct {
 	index             int
 	logger            *qldbLogger
 	ionBinary         []byte
-	err               error
 	consumedIOs       *IOUsage
 	timingInformation *TimingInformation
+	err               error
 }
 
 // Next advances to the next row of data in the current result set.
@@ -89,7 +89,7 @@ func (result *Result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult
 	}
 }
 
-// GetConsumedIOs returns the statement statistics for the current number of read IO requests. The statistics are stateful.
+// GetConsumedIOs returns the statement statistics for the current number of read IO requests that were consumed. The statistics are stateful.
 func (result *Result) GetConsumedIOs() *IOUsage {
 	if result.consumedIOs == nil {
 		return nil
@@ -155,7 +155,7 @@ func (result *BufferedResult) GetCurrentData() []byte {
 	return result.ionBinary
 }
 
-// GetConsumedIOs returns the statement statistics for the total number of read IO requests.
+// GetConsumedIOs returns the statement statistics for the total number of read IO requests that were consumed.
 func (result *BufferedResult) GetConsumedIOs() *IOUsage {
 	return result.consumedIOs
 }
@@ -165,18 +165,18 @@ func (result *BufferedResult) GetTimingInformation() *TimingInformation {
 	return result.timingInformation
 }
 
-// IOUsage contains metrics for the amount of IO requests.
+// IOUsage contains metrics for the amount of IO requests that were consumed.
 type IOUsage struct {
 	readIOs  *int64
 	writeIOs *int64
 }
 
-// GetReadIOs returns the number of read IO requests for a statement execution.
+// GetReadIOs returns the number of read IO requests that were consumed for a statement execution.
 func (ioUsage *IOUsage) GetReadIOs() *int64 {
 	return ioUsage.readIOs
 }
 
-// getWriteIOs returns the number of write IO requests for a statement execution.
+// getWriteIOs returns the number of write IO requests that were consumed for a statement execution.
 func (ioUsage *IOUsage) getWriteIOs() *int64 {
 	return ioUsage.writeIOs
 }

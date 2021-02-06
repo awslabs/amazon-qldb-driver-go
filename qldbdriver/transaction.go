@@ -90,7 +90,7 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 		}
 	}
 
-	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, nil, ioUsage, timingInfo}, nil
+	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, ioUsage, timingInfo, nil}, nil
 }
 
 func (txn *transaction) commit(ctx context.Context) error {

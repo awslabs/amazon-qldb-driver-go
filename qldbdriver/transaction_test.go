@@ -170,14 +170,11 @@ func TestTransactionExecutor(t *testing.T) {
 			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockExecuteResult, nil)
 			mockTransaction.communicator = mockService
 
-			var mockTimingInformation *TimingInformation = nil
-			var mockConsumedIOs *IOUsage = nil
-
 			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
-			assert.Equal(t, mockTimingInformation, result.timingInformation)
-			assert.Equal(t, mockConsumedIOs, result.consumedIOs)
+			assert.Nil(t, result.timingInformation)
+			assert.Nil(t, result.consumedIOs)
 		})
 
 		t.Run("execute result contains IOUsage and TimingInformation", func(t *testing.T) {
