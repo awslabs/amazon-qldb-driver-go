@@ -142,7 +142,7 @@ func TestResult(t *testing.T) {
 	})
 
 	t.Run("updateMetrics", func(t *testing.T) {
-		t.Run("result does not have metrics and fetch page has does not have metrics", func(t *testing.T) {
+		t.Run("result does not have metrics and fetch page does not have metrics", func(t *testing.T) {
 			result := Result{consumedIOs: nil, timingInformation: nil}
 			result.updateMetrics(&mockFetchPageResult)
 
@@ -173,7 +173,16 @@ func TestResult(t *testing.T) {
 
 		t.Run("result has metrics and fetch page has metrics", func(t *testing.T) {
 			result := Result{consumedIOs: consumedIOs, timingInformation: timingInformation}
+
+			readIOsBeforeUpdate := result.GetConsumedIOs().GetReadIOs()
+			writeIOsBeforeUpdate := result.GetConsumedIOs().getWriteIOs()
+			processingTimeMillisecondsBeforeUpdate := result.GetTimingInformation().GetProcessingTimeMilliseconds()
+
 			result.updateMetrics(&mockFetchPageResultWithStats)
+
+			assert.Equal(t, int64(1), *readIOsBeforeUpdate)
+			assert.Equal(t, int64(2), *writeIOsBeforeUpdate)
+			assert.Equal(t, int64(3), *processingTimeMillisecondsBeforeUpdate)
 
 			assert.Equal(t, int64(2), *result.GetConsumedIOs().GetReadIOs())
 			assert.Equal(t, int64(4), *result.GetConsumedIOs().getWriteIOs())
