@@ -75,6 +75,15 @@ func (session *session) wrapError(ctx context.Context, err error, transID string
 				abortSuccess:  true,
 				isISE:         false,
 			}
+		case qldbsession.ErrCodeCapacityExceededException:
+			return &txnError{
+				transactionID: transID,
+				message:       "Capacity Exceeded Exception",
+				err:           awsErr,
+				canRetry:      true,
+				abortSuccess:  session.tryAbort(ctx),
+				isISE:         false,
+			}
 		case http.StatusText(http.StatusInternalServerError), http.StatusText(http.StatusServiceUnavailable):
 			return &txnError{
 				transactionID: transID,

@@ -309,6 +309,47 @@ func TestExecute(t *testing.T) {
 		assert.Equal(t, testISE, awsErr)
 	})
 
+	t.Run("CapacityExceededException returned when exceed CapacityExceededException retry limit", func(t *testing.T) {
+		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
+		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
+
+		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
+
+		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
+		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		abortTransaction := &qldbsession.AbortTransactionRequest{}
+		abortTransactionRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
+		abortTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
+		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
+		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
+
+		testCEE := awserr.New(qldbsession.ErrCodeCapacityExceededException, "Capacity Exceeded", nil)
+
+		mockSession := new(mockQLDBSession)
+		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testCEE)
+		mockSession.On("SendCommandWithContext", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Times(5)
+
+		testDriver.qldbSession = mockSession
+
+		result, err := testDriver.Execute(context.Background(),
+			func(txn Transaction) (interface{}, error) {
+				return "tableNames", nil
+			})
+		assert.Error(t, err)
+		assert.Nil(t, result)
+
+		awsErr, ok := err.(awserr.Error)
+		assert.True(t, ok)
+		assert.Equal(t, testCEE, awsErr)
+	})
+
 	t.Run("error on transaction expiry.", func(t *testing.T) {
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
