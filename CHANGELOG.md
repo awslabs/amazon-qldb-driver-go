@@ -7,7 +7,7 @@
     * `TimingInformation` provides `GetProcessingTimeMilliseconds` method
     * Added `GetConsumedIOs` and `GetTimingInformation` methods in `BufferedResult` and `Result` structs
     * `GetConsumedIOs` and `GetTimingInformation` methods are stateful, meaning the statistics returned by them reflect the state at the time of method execution.
-* Bumped the AWS SDK version to v1.37.8
+* Bumped the AWS SDK version to v1.36.31
 
 # 1.0.1 (2020-10-27)
 
