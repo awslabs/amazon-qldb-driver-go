@@ -178,7 +178,7 @@ func TestExecute(t *testing.T) {
 		abortTransactionRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
 		abortTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		var testOCCError = awserr.New(qldbsession.ErrCodeOccConflictException, "OCC", nil)
+		var testOCCError = awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeOccConflictException, "OCC", nil), http.StatusBadRequest, "reqID")
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
@@ -240,7 +240,7 @@ func TestExecute(t *testing.T) {
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		testISE := awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil)
+		testISE := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil), http.StatusBadRequest, "reqID")
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
@@ -283,7 +283,7 @@ func TestExecute(t *testing.T) {
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		testISE := awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil)
+		testISE := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil), http.StatusBadRequest, "reqID")
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
@@ -328,7 +328,7 @@ func TestExecute(t *testing.T) {
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		testCEE := awserr.New(qldbsession.ErrCodeCapacityExceededException, "Capacity Exceeded", nil)
+		testCEE := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeCapacityExceededException, "Capacity Exceeded", nil), http.StatusServiceUnavailable, "reqID")
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
@@ -365,7 +365,7 @@ func TestExecute(t *testing.T) {
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
 
-		testTxnExpire := awserr.New(qldbsession.ErrCodeInvalidSessionException, "Transaction 23EA3C089B23423D has expired", nil)
+		testTxnExpire := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Transaction 23EA3C089B23423D has expired", nil), http.StatusBadRequest, "ReqID")
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
@@ -447,8 +447,8 @@ func TestExecute(t *testing.T) {
 		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 
-		testISE := awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil)
-		test500error := awserr.New(http.StatusText(http.StatusInternalServerError), "Five Hundred", nil)
+		testISE := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil), http.StatusBadRequest, "reqID")
+		test500error := awserr.NewRequestFailure(awserr.New("InternalServerError", "Five Hundred", nil), http.StatusInternalServerError, "reqID")
 
 		mockSession := new(mockQLDBSession)
 		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
