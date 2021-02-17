@@ -21,6 +21,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
 )
 
+const version string = "1.1.0"
+const userAgentString string = "QLDB Driver for Golang v" + version
+
 type qldbService interface {
 	abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error)
 	commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error)
@@ -39,7 +42,7 @@ type communicator struct {
 func startSession(ctx context.Context, ledgerName string, service qldbsessioniface.QLDBSessionAPI, logger *qldbLogger) (*communicator, error) {
 	startSession := &qldbsession.StartSessionRequest{LedgerName: &ledgerName}
 	sendInput := &qldbsession.SendCommandInput{StartSession: startSession}
-	result, err := service.SendCommandWithContext(ctx, sendInput)
+	result, err := service.SendCommandWithContext(ctx, sendInput, request.MakeAddToUserAgentFreeFormHandler(userAgentString))
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +114,6 @@ func (communicator *communicator) startTransaction(ctx context.Context) (*qldbse
 }
 
 func (communicator *communicator) sendCommand(ctx context.Context, command *qldbsession.SendCommandInput) (*qldbsession.SendCommandOutput, error) {
-	const version string = "1.1.0"
-	const userAgentString = "QLDB Driver for Golang v" + version
 	command.SetSessionToken(*communicator.sessionToken)
 	communicator.logger.logf(LogDebug, "%v", command)
 	return communicator.service.SendCommandWithContext(ctx, command, request.MakeAddToUserAgentFreeFormHandler(userAgentString))
