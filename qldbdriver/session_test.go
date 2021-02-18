@@ -138,7 +138,7 @@ func TestSessionExecute(t *testing.T) {
 		session := session{mockSessionService, mockLogger}
 
 		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
-			_, err := txn.Execute("SELECT v FROM table")
+			_, err := txn.Execute("SELECT * FROM table")
 			if err != nil {
 				return nil, err
 			}
@@ -500,10 +500,10 @@ var mockCommitTransactionResult = qldbsession.CommitTransactionResult{
 	CommitDigest:  mockHash,
 }
 
-var testISE = awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil)
-var testOCC = awserr.New(qldbsession.ErrCodeOccConflictException, "OCC", nil)
-var testBadReq = awserr.New(qldbsession.ErrCodeBadRequestException, "Bad request", nil)
-var test500 = awserr.New(http.StatusText(http.StatusInternalServerError), "Five Hundred", nil)
+var testISE = awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil), http.StatusBadRequest, "reqID")
+var testOCC = awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeOccConflictException, "OCC", nil), http.StatusBadRequest, "reqID")
+var testBadReq = awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeBadRequestException, "Bad request", nil), http.StatusBadRequest, "reqID")
+var test500 = awserr.NewRequestFailure(awserr.New(http.StatusText(http.StatusInternalServerError), "Five Hundred", nil), http.StatusInternalServerError, "reqID")
 
 type mockSessionService struct {
 	mock.Mock

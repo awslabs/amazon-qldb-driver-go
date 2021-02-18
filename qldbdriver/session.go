@@ -54,7 +54,7 @@ func (session *session) execute(ctx context.Context, fn func(txn Transaction) (i
 }
 
 func (session *session) wrapError(ctx context.Context, err error, transID string) *txnError {
-	if awsErr, ok := err.(awserr.Error); ok {
+	if awsErr, ok := err.(awserr.RequestFailure); ok {
 		switch awsErr.Code() {
 		case qldbsession.ErrCodeInvalidSessionException:
 			match := regex.MatchString(awsErr.Message())
@@ -75,7 +75,8 @@ func (session *session) wrapError(ctx context.Context, err error, transID string
 				abortSuccess:  true,
 				isISE:         false,
 			}
-		case http.StatusText(http.StatusInternalServerError), http.StatusText(http.StatusServiceUnavailable):
+		}
+		if awsErr.StatusCode() == http.StatusInternalServerError || awsErr.StatusCode() == http.StatusServiceUnavailable {
 			return &txnError{
 				transactionID: transID,
 				message:       "Service unavailable or internal error.",
