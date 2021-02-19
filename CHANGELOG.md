@@ -1,3 +1,16 @@
+# 1.1.0
+
+## :tada: Enhancements
+
+* Updated the AWS SDK dependency to v1.37.8 to support [CapacityExceededException](https://docs.aws.amazon.com/qldb/latest/developerguide/driver-errors.html). This exception will better inform users that they are overloading their ledger.
+* Statements that return exceptions containing status code 500 and 503 will now be retried.
+* User agent string is now included in start session requests.
+* Added `IOUsage` and `TimingInformation` structs to provide server-side execution statistics
+    * `IOUsage` provides `GetReadIOs` method
+    * `TimingInformation` provides `GetProcessingTimeMilliseconds` method
+    * Added `GetConsumedIOs` and `GetTimingInformation` methods in `BufferedResult` and `Result` structs
+    * `GetConsumedIOs` and `GetTimingInformation` methods are stateful, meaning the statistics returned by them reflect the state at the time of method execution.
+
 # 1.0.1 (2020-10-27)
 
 * Fixed the dates in this CHANGELOG.md file

@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
 )
 
-const version string = "1.0.1"
+const version string = "1.1.0"
 const userAgentString string = "QLDB Driver for Golang v" + version
 
 type qldbService interface {
