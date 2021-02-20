@@ -15,3 +15,4 @@ type QLDBDriverAPI interface {
 }
 
 var _ QLDBDriverAPI = (*qldbdriver.QLDBDriver)(nil)
+

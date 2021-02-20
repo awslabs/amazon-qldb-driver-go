@@ -25,9 +25,9 @@ import (
 // Transaction represents an active QLDB transaction.
 type Transaction interface {
 	// Execute a statement with any parameters within this transaction.
-	Execute(statement string, parameters ...interface{}) (*Result, error)
+	Execute(statement string, parameters ...interface{}) (Cursor, error)
 	// Buffer a Result into a BufferedResult to use outside the context of this transaction.
-	BufferResult(result *Result) (*BufferedResult, error)
+	BufferResult(result Cursor) (*BufferedResult, error)
 	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
 }
@@ -94,12 +94,12 @@ type transactionExecutor struct {
 }
 
 // Execute a statement with any parameters within this transaction.
-func (executor *transactionExecutor) Execute(statement string, parameters ...interface{}) (*Result, error) {
+func (executor *transactionExecutor) Execute(statement string, parameters ...interface{}) (Cursor, error) {
 	return executor.txn.execute(executor.ctx, statement, parameters...)
 }
 
 // Buffer a Result into a BufferedResult to use outside the context of this transaction.
-func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResult, error) {
+func (executor *transactionExecutor) BufferResult(result Cursor) (*BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
 	for result.Next(executor) {
 		bufferedResults = append(bufferedResults, result.GetCurrentData())

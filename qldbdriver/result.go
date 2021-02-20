@@ -19,6 +19,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
 
+type Cursor interface {
+	Next(txn Transaction) bool
+	Err() error
+	GetCurrentData() []byte
+}
+
 // Result is a cursor over a result set from a QLDB statement.
 type Result struct {
 	ctx          context.Context
