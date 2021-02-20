@@ -145,9 +145,11 @@ func TestTransactionExecutor(t *testing.T) {
 			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockExecuteResult, nil)
 			mockTransaction.communicator = mockService
 
-			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
+			cursor, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
 			assert.NoError(t, err)
-			assert.NotNil(t, result)
+			assert.NotNil(t, cursor)
+			result, ok := cursor.(*Result)
+			assert.True(t, ok)
 			assert.Equal(t, mockTransaction.communicator, result.communicator)
 			assert.Equal(t, mockTransaction.id, result.txnID)
 			assert.Equal(t, &mockNextPageToken, result.pageToken)
