@@ -44,7 +44,7 @@ func cleanup(driver *QLDBDriver, testTableName string) {
 	})
 }
 
-func TestStatementExecution(t *testing.T) {
+func TestStatementExecutionIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -422,22 +422,25 @@ func TestStatementExecution(t *testing.T) {
 		type TestTable struct {
 			Name string `ion:"Name"`
 		}
-		driver2, err := testBase.getDriver(ledger, 10, 0)
+		driverWithoutRetry, err := testBase.getDriver(ledger, 10, 0)
 		require.NoError(t, err)
+		defer driverWithoutRetry.Shutdown(context.Background())
+		defer cleanup(driverWithoutRetry, testTableName)
+
 		record := TestTable{"dummy"}
 
 		insertQuery := fmt.Sprintf("INSERT INTO %s ?", testTableName)
-		insertResult, insertErr := driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+		insertResult, insertErr := driverWithoutRetry.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			return executeWithParam(context.Background(), insertQuery, txn, record)
 		})
 		assert.NoError(t, insertErr)
 		assert.Equal(t, insertResult.(int), 1)
 
-		executeResult, err := driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+		executeResult, err := driverWithoutRetry.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 			_, err = txn.Execute(fmt.Sprintf("SELECT VALUE %s FROM %s", columnName, testTableName))
 			assert.NoError(t, err)
 
-			return driver2.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			return driverWithoutRetry.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 				return txn.Execute(fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName), 5)
 			})
 
@@ -448,76 +451,89 @@ func TestStatementExecution(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("Execution metrics for stream result", func(t *testing.T) {
+	t.Run("Execution metrics", func(t *testing.T) {
 		driver, err := testBase.getDriver(ledger, 10, 4)
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
-		defer cleanup(driver, testTableName)
 
-		// Insert docs
-		_, err = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-			return txn.Execute(fmt.Sprintf("INSERT INTO %s << {'col': 1}, {'col': 2}, {'col': 3} >>", testTableName))
-		})
-		require.NoError(t, err)
+		type TestTable struct {
+			Name string `ion:"Name"`
+		}
+		record := TestTable{singleDocumentValue}
 
 		selectQuery := fmt.Sprintf("SELECT * FROM %s as a, %s as b, %s as c, %s as d, %s as e, %s as f",
 			testTableName, testTableName, testTableName, testTableName, testTableName, testTableName)
 
-		_, err = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-			result, err := txn.Execute(selectQuery)
+		insertDocuments := func(driver *QLDBDriver) {
+			_, err = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+				return txn.Execute(fmt.Sprintf("INSERT INTO %s <<?, ?, ?>>", testTableName), record, record, record)
+
+			})
+			require.NoError(t, err)
+		}
+
+		t.Run("Execution metrics for stream result", func(t *testing.T) {
+			defer cleanup(driver, testTableName)
+
+			// Insert docs
+			insertDocuments(driver)
+
+			_, err = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+				result, err := txn.Execute(selectQuery)
+				require.NoError(t, err)
+
+				totalReadIOs := int64(0)
+				totalProcessingTimeMilliseconds := int64(0)
+				for result.Next(txn) {
+					// IOUsage test
+					ioUsage := result.GetConsumedIOs()
+					require.NotNil(t, ioUsage)
+					assert.True(t, *ioUsage.GetReadIOs() > 0)
+					totalReadIOs = *ioUsage.GetReadIOs()
+
+					// TimingInformation test
+					timingInfo := result.GetTimingInformation()
+					require.NotNil(t, timingInfo)
+					assert.True(t, *timingInfo.GetProcessingTimeMilliseconds() > 0)
+					totalProcessingTimeMilliseconds = *timingInfo.GetProcessingTimeMilliseconds()
+				}
+
+				// This value comes from the statement that performs self joins on a table.
+				assert.Equal(t, int64(1092), totalReadIOs)
+				assert.True(t, totalProcessingTimeMilliseconds > 0)
+				return nil, nil
+			})
+			assert.NoError(t, err)
+		})
+
+		t.Run("Execution metrics for buffered result", func(t *testing.T) {
+			defer cleanup(driver, testTableName)
+
+			// Insert docs
+			insertDocuments(driver)
+
+			result, err := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+				result, err := txn.Execute(selectQuery)
+				if err != nil {
+					return nil, err
+				}
+				return txn.BufferResult(result)
+			})
 			require.NoError(t, err)
 
-			for result.Next(txn) {
-				// IOUsage test
-				ioUsage := result.GetConsumedIOs()
-				require.NotNil(t, ioUsage)
-				assert.True(t, *ioUsage.GetReadIOs() > 0)
+			bufferedResult := result.(*BufferedResult)
 
-				// TimingInformation test
-				timingInfo := result.GetTimingInformation()
-				require.NotNil(t, timingInfo)
-				assert.True(t, *timingInfo.GetProcessingTimeMilliseconds() > 0)
-			}
-			return nil, nil
+			// IOUsage test
+			ioUsage := bufferedResult.GetConsumedIOs()
+			require.NotNil(t, ioUsage)
+			// This value comes from the statement that performs self joins on a table.
+			assert.Equal(t, int64(1092), *ioUsage.GetReadIOs())
+
+			// TimingInformation test
+			timingInfo := bufferedResult.GetTimingInformation()
+			require.NotNil(t, timingInfo)
+			assert.True(t, *timingInfo.GetProcessingTimeMilliseconds() > 0)
 		})
-		assert.NoError(t, err)
-	})
-
-	t.Run("Execution metrics for buffered result", func(t *testing.T) {
-		driver, err := testBase.getDriver(ledger, 10, 4)
-		require.NoError(t, err)
-		defer driver.Shutdown(context.Background())
-		defer cleanup(driver, testTableName)
-
-		// Insert docs
-		_, err = driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-			return txn.Execute(fmt.Sprintf("INSERT INTO %s << {'col': 1}, {'col': 2}, {'col': 3} >>", testTableName))
-		})
-		require.NoError(t, err)
-
-		selectQuery := fmt.Sprintf("SELECT * FROM %s as a, %s as b, %s as c, %s as d, %s as e, %s as f",
-			testTableName, testTableName, testTableName, testTableName, testTableName, testTableName)
-
-		result, err := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-			streamResult, err := txn.Execute(selectQuery)
-			if err != nil {
-				return nil, err
-			}
-			return txn.BufferResult(streamResult)
-		})
-		require.NoError(t, err)
-
-		bufferedResult := result.(*BufferedResult)
-
-		// IOUsage test
-		ioUsage := bufferedResult.GetConsumedIOs()
-		require.NotNil(t, ioUsage)
-		assert.Equal(t, int64(1092), *ioUsage.GetReadIOs())
-
-		// TimingInformation test
-		timingInfo := bufferedResult.GetTimingInformation()
-		require.NotNil(t, timingInfo)
-		assert.True(t, *timingInfo.GetProcessingTimeMilliseconds() > 0)
 	})
 
 	t.Run("Insert and read Ion types", func(t *testing.T) {

@@ -37,28 +37,27 @@ func TestResult(t *testing.T) {
 	// Has only one value
 	mockNextPageValues[0] = mockNextValueHolder
 
+	readIOs := int64(1)
+	writeIOs := int64(2)
+	processingTimeMilliseconds := int64(3)
+	qldbsessionTimingInformation := generateQldbsessionTimingInformation(&processingTimeMilliseconds)
+	qldbsessionConsumedIOs := generateQldbsessionIOUsage(&readIOs, &writeIOs)
+
 	result := &Result{
-		ctx:          nil,
-		communicator: nil,
-		txnID:        nil,
-		pageValues:   mockPageValues,
-		pageToken:    nil,
-		index:        0,
-		logger:       nil,
+		ctx:                 nil,
+		communicator:        nil,
+		txnID:               nil,
+		pageValues:          mockPageValues,
+		pageToken:           nil,
+		index:               0,
+		logger:              nil,
+		statementStatistics: generateStatementStatistics(new(int64), new(int64), new(int64)),
 	}
 
-	mockReadIOs := int64(1)
-	mockWriteIOs := int64(2)
-	mockTimingInfo := int64(3)
-	qldbsessionTimingInformation := generateQldbsessionTimingInformation(&mockTimingInfo)
-	qldbsessionConsumedIOs := generateQldbsessionIOUsage(&mockReadIOs, &mockWriteIOs)
-	timingInformation := generateTimingInformation(&mockTimingInfo)
-	consumedIOs := generateIOUsage(&mockReadIOs, &mockWriteIOs)
-
-	mockFetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
-	mockFetchPageResultWithStats := mockFetchPageResult
-	mockFetchPageResultWithStats.TimingInformation = qldbsessionTimingInformation
-	mockFetchPageResultWithStats.ConsumedIOs = qldbsessionConsumedIOs
+	fetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
+	fetchPageResultWithStats := fetchPageResult
+	fetchPageResultWithStats.TimingInformation = qldbsessionTimingInformation
+	fetchPageResultWithStats.ConsumedIOs = qldbsessionConsumedIOs
 
 	t.Run("Next", func(t *testing.T) {
 		t.Run("pageToken is nil", func(t *testing.T) {
@@ -81,7 +80,7 @@ func TestResult(t *testing.T) {
 				result.index = 0
 				result.pageToken = &mockToken
 				mockService := new(mockResultService)
-				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResult, nil)
+				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&fetchPageResult, nil)
 				result.communicator = mockService
 
 				// Default page
@@ -102,23 +101,20 @@ func TestResult(t *testing.T) {
 				result.index = 0
 				result.pageToken = &mockToken
 				mockService := new(mockResultService)
-				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResultWithStats, nil)
+				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&fetchPageResultWithStats, nil)
 				result.communicator = mockService
-
-				var mockTimingInformation *TimingInformation = nil
-				var mockConsumedIOs *IOUsage = nil
 
 				// Default page
 				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, mockTimingInformation, result.timingInformation)
-				assert.Equal(t, mockConsumedIOs, result.consumedIOs)
+				assert.Equal(t, new(int64), result.statementStatistics.timingInformation.GetProcessingTimeMilliseconds())
+				assert.Equal(t, new(int64), result.statementStatistics.ioUsage.GetReadIOs())
+				assert.Equal(t, new(int64), result.statementStatistics.ioUsage.getWriteIOs())
 
 				// Fetched page
 				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, mockTimingInfo, *result.timingInformation.GetProcessingTimeMilliseconds())
-				assert.Equal(t, mockReadIOs, *result.consumedIOs.GetReadIOs())
-				assert.Equal(t, mockWriteIOs, *result.consumedIOs.getWriteIOs())
-
+				assert.Equal(t, processingTimeMilliseconds, *result.statementStatistics.timingInformation.GetProcessingTimeMilliseconds())
+				assert.Equal(t, readIOs, *result.statementStatistics.ioUsage.GetReadIOs())
+				assert.Equal(t, writeIOs, *result.statementStatistics.ioUsage.getWriteIOs())
 			})
 
 			t.Run("fail", func(t *testing.T) {
@@ -126,7 +122,7 @@ func TestResult(t *testing.T) {
 				result.pageToken = &mockToken
 				result.pageValues = mockPageValues
 				mockService := new(mockResultService)
-				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&mockFetchPageResult, errMock)
+				mockService.On("fetchPage", mock.Anything, mock.Anything, mock.Anything).Return(&fetchPageResult, errMock)
 				result.communicator = mockService
 
 				// Default page
@@ -143,42 +139,40 @@ func TestResult(t *testing.T) {
 
 	t.Run("updateMetrics", func(t *testing.T) {
 		t.Run("result does not have metrics and fetch page does not have metrics", func(t *testing.T) {
-			result := Result{consumedIOs: nil, timingInformation: nil}
-			result.updateMetrics(&mockFetchPageResult)
+			result := Result{statementStatistics: generateStatementStatistics(new(int64), new(int64), new(int64))}
+			result.updateMetrics(&fetchPageResult)
 
-			var mockTimingInformation *TimingInformation = nil
-			var mockConsumedIOs *IOUsage = nil
-
-			assert.Equal(t, mockConsumedIOs, result.GetConsumedIOs())
-			assert.Equal(t, mockTimingInformation, result.GetTimingInformation())
+			assert.Equal(t, int64(0), *result.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, int64(0), *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, int64(0), *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
 		t.Run("result does not have metrics and fetch page has metrics", func(t *testing.T) {
-			result := Result{consumedIOs: nil, timingInformation: nil}
-			result.updateMetrics(&mockFetchPageResultWithStats)
+			result := Result{statementStatistics: generateStatementStatistics(new(int64), new(int64), new(int64))}
+			result.updateMetrics(&fetchPageResultWithStats)
 
-			assert.Equal(t, mockReadIOs, *result.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, mockWriteIOs, *result.GetConsumedIOs().getWriteIOs())
-			assert.Equal(t, mockTimingInfo, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
+			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, writeIOs, *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, processingTimeMilliseconds, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
 		t.Run("result has metrics and fetch page does not have metrics", func(t *testing.T) {
-			result := Result{consumedIOs: consumedIOs, timingInformation: timingInformation}
-			result.updateMetrics(&mockFetchPageResult)
+			result := Result{statementStatistics: generateStatementStatistics(&readIOs, &writeIOs, &processingTimeMilliseconds)}
+			result.updateMetrics(&fetchPageResult)
 
-			assert.Equal(t, mockReadIOs, *result.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, mockWriteIOs, *result.GetConsumedIOs().getWriteIOs())
-			assert.Equal(t, mockTimingInfo, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
+			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, writeIOs, *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, processingTimeMilliseconds, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
 		t.Run("result has metrics and fetch page has metrics", func(t *testing.T) {
-			result := Result{consumedIOs: consumedIOs, timingInformation: timingInformation}
+			result := Result{statementStatistics: generateStatementStatistics(&readIOs, &writeIOs, &processingTimeMilliseconds)}
 
 			readIOsBeforeUpdate := result.GetConsumedIOs().GetReadIOs()
 			writeIOsBeforeUpdate := result.GetConsumedIOs().getWriteIOs()
 			processingTimeMillisecondsBeforeUpdate := result.GetTimingInformation().GetProcessingTimeMilliseconds()
 
-			result.updateMetrics(&mockFetchPageResultWithStats)
+			result.updateMetrics(&fetchPageResultWithStats)
 
 			assert.Equal(t, int64(1), *readIOsBeforeUpdate)
 			assert.Equal(t, int64(2), *writeIOsBeforeUpdate)
@@ -200,12 +194,10 @@ func TestBufferedResult(t *testing.T) {
 	byteSliceSlice[0] = byteSlice1
 	byteSliceSlice[1] = byteSlice2
 
-	mockReadIOs := int64(1)
-	mockWriteIOs := int64(2)
-	mockTimingInfo := int64(3)
-	IOUsage := generateIOUsage(&mockReadIOs, &mockWriteIOs)
-	TimingInformation := generateTimingInformation(&mockTimingInfo)
-	result := BufferedResult{values: byteSliceSlice, index: 0, consumedIOs: IOUsage, timingInformation: TimingInformation}
+	readIOs := int64(1)
+	writeIOs := int64(2)
+	processingTimeMilliseconds := int64(3)
+	result := BufferedResult{values: byteSliceSlice, index: 0, statementStatistics: generateStatementStatistics(&readIOs, &writeIOs, &processingTimeMilliseconds)}
 
 	t.Run("Next", func(t *testing.T) {
 		result.index = 0
@@ -220,9 +212,9 @@ func TestBufferedResult(t *testing.T) {
 		assert.False(t, result.Next())
 		assert.Nil(t, result.GetCurrentData())
 
-		assert.Equal(t, mockTimingInfo, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
-		assert.Equal(t, mockReadIOs, *result.GetConsumedIOs().GetReadIOs())
-		assert.Equal(t, mockWriteIOs, *result.GetConsumedIOs().getWriteIOs())
+		assert.Equal(t, processingTimeMilliseconds, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
+		assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
+		assert.Equal(t, writeIOs, *result.GetConsumedIOs().getWriteIOs())
 	})
 }
 
@@ -255,19 +247,6 @@ func (m *mockResultService) startTransaction(ctx context.Context) (*qldbsession.
 	panic("not used")
 }
 
-func generateIOUsage(readIOs *int64, writeIOs *int64) *IOUsage {
-	return &IOUsage{
-		readIOs:  readIOs,
-		writeIOs: writeIOs,
-	}
-}
-
-func generateTimingInformation(processingTimeMilliseconds *int64) *TimingInformation {
-	return &TimingInformation{
-		processingTimeMilliseconds: processingTimeMilliseconds,
-	}
-}
-
 func generateQldbsessionIOUsage(readIOs *int64, writeIOs *int64) *qldbsession.IOUsage {
 	return &qldbsession.IOUsage{
 		ReadIOs:  readIOs,
@@ -279,4 +258,15 @@ func generateQldbsessionTimingInformation(processingTimeMilliseconds *int64) *ql
 	return &qldbsession.TimingInformation{
 		ProcessingTimeMilliseconds: processingTimeMilliseconds,
 	}
+}
+
+func generateStatementStatistics(readIOs *int64, writeIOs *int64, processingTimeMilliseconds *int64) *statementStatistics {
+	var ioUsage = &IOUsage{
+		readIOs:  readIOs,
+		writeIOs: writeIOs,
+	}
+	var timingInformation = &TimingInformation{
+		processingTimeMilliseconds: processingTimeMilliseconds,
+	}
+	return &statementStatistics{ioUsage, timingInformation}
 }

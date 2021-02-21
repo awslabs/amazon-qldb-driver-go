@@ -31,9 +31,20 @@ func TestTransaction(t *testing.T) {
 			NextPageToken: &mockNextPageToken,
 			Values:        mockPageValues,
 		}
-		mockExecuteResult := qldbsession.ExecuteStatementResult{
+
+		readIOs := int64(1)
+		writeIOs := int64(2)
+		processingTimeMilliseconds := int64(3)
+		qldbsessionTimingInformation := generateQldbsessionTimingInformation(&processingTimeMilliseconds)
+		qldbsessionConsumedIOs := generateQldbsessionIOUsage(&readIOs, &writeIOs)
+
+		executeResult := qldbsession.ExecuteStatementResult{
 			FirstPage: &mockFirstPage,
 		}
+
+		executeResultWithQueryStats := executeResult
+		executeResultWithQueryStats.TimingInformation = qldbsessionTimingInformation
+		executeResultWithQueryStats.ConsumedIOs = qldbsessionConsumedIOs
 
 		testTransaction := &transaction{
 			communicator: nil,
@@ -44,7 +55,7 @@ func TestTransaction(t *testing.T) {
 
 		t.Run("success", func(t *testing.T) {
 			mockService := new(mockTransactionService)
-			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockExecuteResult, nil)
+			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&executeResult, nil)
 			testTransaction.communicator = mockService
 
 			result, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
@@ -54,6 +65,26 @@ func TestTransaction(t *testing.T) {
 			assert.Equal(t, testTransaction.id, result.txnID)
 			assert.Equal(t, &mockNextPageToken, result.pageToken)
 			assert.Equal(t, mockPageValues, result.pageValues)
+			assert.Equal(t, int64(0), *result.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, int64(0), *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, int64(0), *result.GetTimingInformation().GetProcessingTimeMilliseconds())
+		})
+
+		t.Run("success and execute statement result contains query stats", func(t *testing.T) {
+			mockService := new(mockTransactionService)
+			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&executeResultWithQueryStats, nil)
+			testTransaction.communicator = mockService
+
+			result, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, testTransaction.communicator, result.communicator)
+			assert.Equal(t, testTransaction.id, result.txnID)
+			assert.Equal(t, &mockNextPageToken, result.pageToken)
+			assert.Equal(t, mockPageValues, result.pageValues)
+			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, writeIOs, *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, processingTimeMilliseconds, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
 		t.Run("error", func(t *testing.T) {
@@ -173,19 +204,20 @@ func TestTransactionExecutor(t *testing.T) {
 			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
-			assert.Nil(t, result.timingInformation)
-			assert.Nil(t, result.consumedIOs)
+			assert.Equal(t, int64(0), *result.statementStatistics.ioUsage.GetReadIOs())
+			assert.Equal(t, int64(0), *result.statementStatistics.ioUsage.getWriteIOs())
+			assert.Equal(t, int64(0), *result.statementStatistics.timingInformation.GetProcessingTimeMilliseconds())
 		})
 
 		t.Run("execute result contains IOUsage and TimingInformation", func(t *testing.T) {
 			mockService := new(mockTransactionService)
 
-			mockReadIOs := int64(1)
-			mockWriteIOs := int64(2)
-			mockTimingInfo := int64(3)
+			readIOs := int64(1)
+			writeIOs := int64(2)
+			timingInfo := int64(3)
 
-			timingInformation := generateQldbsessionTimingInformation(&mockTimingInfo)
-			consumedIOs := generateQldbsessionIOUsage(&mockReadIOs, &mockWriteIOs)
+			timingInformation := generateQldbsessionTimingInformation(&timingInfo)
+			consumedIOs := generateQldbsessionIOUsage(&readIOs, &writeIOs)
 
 			mockExecuteResultWithQueryStats := mockExecuteResult
 			mockExecuteResultWithQueryStats.TimingInformation = timingInformation
@@ -197,9 +229,9 @@ func TestTransactionExecutor(t *testing.T) {
 			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
-			assert.Equal(t, &mockTimingInfo, result.timingInformation.GetProcessingTimeMilliseconds())
-			assert.Equal(t, &mockReadIOs, result.consumedIOs.GetReadIOs())
-			assert.Equal(t, &mockWriteIOs, result.consumedIOs.getWriteIOs())
+			assert.Equal(t, &timingInfo, result.statementStatistics.timingInformation.processingTimeMilliseconds)
+			assert.Equal(t, &readIOs, result.statementStatistics.ioUsage.readIOs)
+			assert.Equal(t, &writeIOs, result.statementStatistics.ioUsage.writeIOs)
 		})
 	})
 
@@ -220,22 +252,19 @@ func TestTransactionExecutor(t *testing.T) {
 		mockFetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
 
 		mockPageToken := "mockToken"
-		mockReadIOs := int64(1)
-		mockWriteIOs := int64(2)
-		mockTimingInfo := int64(3)
-		IOUsage := generateIOUsage(&mockReadIOs, &mockWriteIOs)
-		TimingInformation := generateTimingInformation(&mockTimingInfo)
+		readIOs := int64(1)
+		writeIOs := int64(2)
+		timingInfo := int64(3)
 
 		testResult := Result{
-			ctx:               context.Background(),
-			communicator:      nil,
-			txnID:             &mockID,
-			pageValues:        mockPageValues,
-			pageToken:         &mockPageToken,
-			index:             0,
-			logger:            mockLogger,
-			consumedIOs:       IOUsage,
-			timingInformation: TimingInformation,
+			ctx:                 context.Background(),
+			communicator:        nil,
+			txnID:               &mockID,
+			pageValues:          mockPageValues,
+			pageToken:           &mockPageToken,
+			index:               0,
+			logger:              mockLogger,
+			statementStatistics: generateStatementStatistics(&readIOs, &writeIOs, &timingInfo),
 		}
 
 		t.Run("success", func(t *testing.T) {
@@ -249,9 +278,9 @@ func TestTransactionExecutor(t *testing.T) {
 			assert.Equal(t, mockIonBinary, bufferedResult.GetCurrentData())
 			assert.True(t, bufferedResult.Next())
 			assert.Equal(t, mockNextIonBinary, bufferedResult.GetCurrentData())
-			assert.Equal(t, mockTimingInfo, *bufferedResult.GetTimingInformation().GetProcessingTimeMilliseconds())
-			assert.Equal(t, mockReadIOs, *bufferedResult.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, mockWriteIOs, *bufferedResult.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, timingInfo, *bufferedResult.GetTimingInformation().GetProcessingTimeMilliseconds())
+			assert.Equal(t, readIOs, *bufferedResult.GetConsumedIOs().GetReadIOs())
+			assert.Equal(t, writeIOs, *bufferedResult.GetConsumedIOs().getWriteIOs())
 		})
 
 		t.Run("error", func(t *testing.T) {

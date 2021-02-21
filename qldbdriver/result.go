@@ -21,17 +21,16 @@ import (
 
 // Result is a cursor over a result set from a QLDB statement.
 type Result struct {
-	ctx               context.Context
-	communicator      qldbService
-	txnID             *string
-	pageValues        []*qldbsession.ValueHolder
-	pageToken         *string
-	index             int
-	logger            *qldbLogger
-	ionBinary         []byte
-	consumedIOs       *IOUsage
-	timingInformation *TimingInformation
-	err               error
+	ctx                 context.Context
+	communicator        qldbService
+	txnID               *string
+	pageValues          []*qldbsession.ValueHolder
+	pageToken           *string
+	index               int
+	logger              *qldbLogger
+	ionBinary           []byte
+	statementStatistics *statementStatistics
+	err                 error
 }
 
 // Next advances to the next row of data in the current result set.
@@ -74,28 +73,19 @@ func (result *Result) getNextPage() error {
 
 func (result *Result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult) {
 	if fetchPageResult.ConsumedIOs != nil {
-		if result.consumedIOs == nil {
-			result.consumedIOs = &IOUsage{new(int64), new(int64)}
-		}
-		*result.consumedIOs.readIOs += *fetchPageResult.ConsumedIOs.ReadIOs
-		*result.consumedIOs.writeIOs += *fetchPageResult.ConsumedIOs.WriteIOs
+		*result.statementStatistics.ioUsage.readIOs += *fetchPageResult.ConsumedIOs.ReadIOs
+		*result.statementStatistics.ioUsage.writeIOs += *fetchPageResult.ConsumedIOs.WriteIOs
 	}
 
 	if fetchPageResult.TimingInformation != nil {
-		if result.timingInformation == nil {
-			result.timingInformation = &TimingInformation{new(int64)}
-		}
-		*result.timingInformation.processingTimeMilliseconds += *fetchPageResult.TimingInformation.ProcessingTimeMilliseconds
+		*result.statementStatistics.timingInformation.processingTimeMilliseconds += *fetchPageResult.TimingInformation.ProcessingTimeMilliseconds
 	}
 }
 
 // GetConsumedIOs returns the statement statistics for the current number of read IO requests that were consumed. The statistics are stateful.
 func (result *Result) GetConsumedIOs() *IOUsage {
-	if result.consumedIOs == nil {
-		return nil
-	}
-	readIOs := *result.consumedIOs.readIOs
-	writeIOs := *result.consumedIOs.writeIOs
+	readIOs := *result.statementStatistics.ioUsage.readIOs
+	writeIOs := *result.statementStatistics.ioUsage.writeIOs
 	return &IOUsage{
 		readIOs:  &readIOs,
 		writeIOs: &writeIOs,
@@ -104,10 +94,7 @@ func (result *Result) GetConsumedIOs() *IOUsage {
 
 // GetTimingInformation returns the statement statistics for the current server-side processing time. The statistics are stateful.
 func (result *Result) GetTimingInformation() *TimingInformation {
-	if result.timingInformation == nil {
-		return nil
-	}
-	timingInformation := *result.timingInformation.processingTimeMilliseconds
+	timingInformation := *result.statementStatistics.timingInformation.processingTimeMilliseconds
 	return &TimingInformation{
 		processingTimeMilliseconds: &timingInformation,
 	}
@@ -127,11 +114,10 @@ func (result *Result) Err() error {
 
 // BufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
 type BufferedResult struct {
-	values            [][]byte
-	index             int
-	ionBinary         []byte
-	consumedIOs       *IOUsage
-	timingInformation *TimingInformation
+	values              [][]byte
+	index               int
+	ionBinary           []byte
+	statementStatistics *statementStatistics
 }
 
 // Next advances to the next row of data in the current result set.
@@ -157,12 +143,12 @@ func (result *BufferedResult) GetCurrentData() []byte {
 
 // GetConsumedIOs returns the statement statistics for the total number of read IO requests that were consumed.
 func (result *BufferedResult) GetConsumedIOs() *IOUsage {
-	return result.consumedIOs
+	return result.statementStatistics.ioUsage
 }
 
 // GetTimingInformation returns the statement statistics for the total server-side processing time.
 func (result *BufferedResult) GetTimingInformation() *TimingInformation {
-	return result.timingInformation
+	return result.statementStatistics.timingInformation
 }
 
 // IOUsage contains metrics for the amount of IO requests that were consumed.
@@ -189,4 +175,10 @@ type TimingInformation struct {
 // GetProcessingTimeMilliseconds returns the server-side processing time in milliseconds for a statement execution.
 func (timingInfo *TimingInformation) GetProcessingTimeMilliseconds() *int64 {
 	return timingInfo.processingTimeMilliseconds
+}
+
+// statementStatistics holds IOUsage and TimingInformation structs
+type statementStatistics struct {
+	ioUsage           *IOUsage
+	timingInformation *TimingInformation
 }
