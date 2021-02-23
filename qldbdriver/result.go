@@ -21,16 +21,16 @@ import (
 
 // Result is a cursor over a result set from a QLDB statement.
 type Result struct {
-	ctx                 context.Context
-	communicator        qldbService
-	txnID               *string
-	pageValues          []*qldbsession.ValueHolder
-	pageToken           *string
-	index               int
-	logger              *qldbLogger
-	ionBinary           []byte
-	statementStatistics *statementStatistics
-	err                 error
+	ctx          context.Context
+	communicator qldbService
+	txnID        *string
+	pageValues   []*qldbsession.ValueHolder
+	pageToken    *string
+	index        int
+	logger       *qldbLogger
+	ionBinary    []byte
+	metrics      *metrics
+	err          error
 }
 
 // Next advances to the next row of data in the current result set.
@@ -73,19 +73,19 @@ func (result *Result) getNextPage() error {
 
 func (result *Result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult) {
 	if fetchPageResult.ConsumedIOs != nil {
-		*result.statementStatistics.ioUsage.readIOs += *fetchPageResult.ConsumedIOs.ReadIOs
-		*result.statementStatistics.ioUsage.writeIOs += *fetchPageResult.ConsumedIOs.WriteIOs
+		*result.metrics.ioUsage.readIOs += *fetchPageResult.ConsumedIOs.ReadIOs
+		*result.metrics.ioUsage.writeIOs += *fetchPageResult.ConsumedIOs.WriteIOs
 	}
 
 	if fetchPageResult.TimingInformation != nil {
-		*result.statementStatistics.timingInformation.processingTimeMilliseconds += *fetchPageResult.TimingInformation.ProcessingTimeMilliseconds
+		*result.metrics.timingInformation.processingTimeMilliseconds += *fetchPageResult.TimingInformation.ProcessingTimeMilliseconds
 	}
 }
 
 // GetConsumedIOs returns the statement statistics for the current number of read IO requests that were consumed. The statistics are stateful.
 func (result *Result) GetConsumedIOs() *IOUsage {
-	readIOs := *result.statementStatistics.ioUsage.readIOs
-	writeIOs := *result.statementStatistics.ioUsage.writeIOs
+	readIOs := *result.metrics.ioUsage.readIOs
+	writeIOs := *result.metrics.ioUsage.writeIOs
 	return &IOUsage{
 		readIOs:  &readIOs,
 		writeIOs: &writeIOs,
@@ -94,7 +94,7 @@ func (result *Result) GetConsumedIOs() *IOUsage {
 
 // GetTimingInformation returns the statement statistics for the current server-side processing time. The statistics are stateful.
 func (result *Result) GetTimingInformation() *TimingInformation {
-	timingInformation := *result.statementStatistics.timingInformation.processingTimeMilliseconds
+	timingInformation := *result.metrics.timingInformation.processingTimeMilliseconds
 	return &TimingInformation{
 		processingTimeMilliseconds: &timingInformation,
 	}
@@ -114,10 +114,10 @@ func (result *Result) Err() error {
 
 // BufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
 type BufferedResult struct {
-	values              [][]byte
-	index               int
-	ionBinary           []byte
-	statementStatistics *statementStatistics
+	values    [][]byte
+	index     int
+	ionBinary []byte
+	metrics   *metrics
 }
 
 // Next advances to the next row of data in the current result set.
@@ -143,12 +143,12 @@ func (result *BufferedResult) GetCurrentData() []byte {
 
 // GetConsumedIOs returns the statement statistics for the total number of read IO requests that were consumed.
 func (result *BufferedResult) GetConsumedIOs() *IOUsage {
-	return result.statementStatistics.ioUsage
+	return result.metrics.ioUsage
 }
 
 // GetTimingInformation returns the statement statistics for the total server-side processing time.
 func (result *BufferedResult) GetTimingInformation() *TimingInformation {
-	return result.statementStatistics.timingInformation
+	return result.metrics.timingInformation
 }
 
 // IOUsage contains metrics for the amount of IO requests that were consumed.
@@ -177,8 +177,8 @@ func (timingInfo *TimingInformation) GetProcessingTimeMilliseconds() *int64 {
 	return timingInfo.processingTimeMilliseconds
 }
 
-// statementStatistics holds IOUsage and TimingInformation structs
-type statementStatistics struct {
+// metrics holds IOUsage and TimingInformation structs
+type metrics struct {
 	ioUsage           *IOUsage
 	timingInformation *TimingInformation
 }

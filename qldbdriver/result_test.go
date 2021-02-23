@@ -40,18 +40,18 @@ func TestResult(t *testing.T) {
 	readIOs := int64(1)
 	writeIOs := int64(2)
 	processingTimeMilliseconds := int64(3)
-	qldbsessionTimingInformation := generateQldbsessionTimingInformation(&processingTimeMilliseconds)
-	qldbsessionConsumedIOs := generateQldbsessionIOUsage(&readIOs, &writeIOs)
+	qldbsessionTimingInformation := generateQldbsessionTimingInformation(processingTimeMilliseconds)
+	qldbsessionConsumedIOs := generateQldbsessionIOUsage(readIOs, writeIOs)
 
 	result := &Result{
-		ctx:                 nil,
-		communicator:        nil,
-		txnID:               nil,
-		pageValues:          mockPageValues,
-		pageToken:           nil,
-		index:               0,
-		logger:              nil,
-		statementStatistics: generateStatementStatistics(new(int64), new(int64), new(int64)),
+		ctx:          nil,
+		communicator: nil,
+		txnID:        nil,
+		pageValues:   mockPageValues,
+		pageToken:    nil,
+		index:        0,
+		logger:       nil,
+		metrics:      generateMetrics(0, 0, 0),
 	}
 
 	fetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
@@ -106,15 +106,15 @@ func TestResult(t *testing.T) {
 
 				// Default page
 				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, new(int64), result.statementStatistics.timingInformation.GetProcessingTimeMilliseconds())
-				assert.Equal(t, new(int64), result.statementStatistics.ioUsage.GetReadIOs())
-				assert.Equal(t, new(int64), result.statementStatistics.ioUsage.getWriteIOs())
+				assert.Equal(t, int64(0), *result.metrics.timingInformation.GetProcessingTimeMilliseconds())
+				assert.Equal(t, int64(0), *result.metrics.ioUsage.GetReadIOs())
+				assert.Equal(t, int64(0), *result.metrics.ioUsage.getWriteIOs())
 
 				// Fetched page
 				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, processingTimeMilliseconds, *result.statementStatistics.timingInformation.GetProcessingTimeMilliseconds())
-				assert.Equal(t, readIOs, *result.statementStatistics.ioUsage.GetReadIOs())
-				assert.Equal(t, writeIOs, *result.statementStatistics.ioUsage.getWriteIOs())
+				assert.Equal(t, processingTimeMilliseconds, *result.metrics.timingInformation.GetProcessingTimeMilliseconds())
+				assert.Equal(t, readIOs, *result.metrics.ioUsage.GetReadIOs())
+				assert.Equal(t, writeIOs, *result.metrics.ioUsage.getWriteIOs())
 			})
 
 			t.Run("fail", func(t *testing.T) {
@@ -139,7 +139,7 @@ func TestResult(t *testing.T) {
 
 	t.Run("updateMetrics", func(t *testing.T) {
 		t.Run("result does not have metrics and fetch page does not have metrics", func(t *testing.T) {
-			result := Result{statementStatistics: generateStatementStatistics(new(int64), new(int64), new(int64))}
+			result := Result{metrics: generateMetrics(0, 0, 0)}
 			result.updateMetrics(&fetchPageResult)
 
 			assert.Equal(t, int64(0), *result.GetConsumedIOs().GetReadIOs())
@@ -148,7 +148,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("result does not have metrics and fetch page has metrics", func(t *testing.T) {
-			result := Result{statementStatistics: generateStatementStatistics(new(int64), new(int64), new(int64))}
+			result := Result{metrics: generateMetrics(0, 0, 0)}
 			result.updateMetrics(&fetchPageResultWithStats)
 
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
@@ -157,7 +157,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("result has metrics and fetch page does not have metrics", func(t *testing.T) {
-			result := Result{statementStatistics: generateStatementStatistics(&readIOs, &writeIOs, &processingTimeMilliseconds)}
+			result := Result{metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
 			result.updateMetrics(&fetchPageResult)
 
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
@@ -166,7 +166,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("result has metrics and fetch page has metrics", func(t *testing.T) {
-			result := Result{statementStatistics: generateStatementStatistics(&readIOs, &writeIOs, &processingTimeMilliseconds)}
+			result := Result{metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
 
 			readIOsBeforeUpdate := result.GetConsumedIOs().GetReadIOs()
 			writeIOsBeforeUpdate := result.GetConsumedIOs().getWriteIOs()
@@ -197,7 +197,7 @@ func TestBufferedResult(t *testing.T) {
 	readIOs := int64(1)
 	writeIOs := int64(2)
 	processingTimeMilliseconds := int64(3)
-	result := BufferedResult{values: byteSliceSlice, index: 0, statementStatistics: generateStatementStatistics(&readIOs, &writeIOs, &processingTimeMilliseconds)}
+	result := BufferedResult{values: byteSliceSlice, index: 0, metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
 
 	t.Run("Next", func(t *testing.T) {
 		result.index = 0
@@ -247,26 +247,26 @@ func (m *mockResultService) startTransaction(ctx context.Context) (*qldbsession.
 	panic("not used")
 }
 
-func generateQldbsessionIOUsage(readIOs *int64, writeIOs *int64) *qldbsession.IOUsage {
+func generateQldbsessionIOUsage(readIOs int64, writeIOs int64) *qldbsession.IOUsage {
 	return &qldbsession.IOUsage{
-		ReadIOs:  readIOs,
-		WriteIOs: writeIOs,
+		ReadIOs:  &readIOs,
+		WriteIOs: &writeIOs,
 	}
 }
 
-func generateQldbsessionTimingInformation(processingTimeMilliseconds *int64) *qldbsession.TimingInformation {
+func generateQldbsessionTimingInformation(processingTimeMilliseconds int64) *qldbsession.TimingInformation {
 	return &qldbsession.TimingInformation{
-		ProcessingTimeMilliseconds: processingTimeMilliseconds,
+		ProcessingTimeMilliseconds: &processingTimeMilliseconds,
 	}
 }
 
-func generateStatementStatistics(readIOs *int64, writeIOs *int64, processingTimeMilliseconds *int64) *statementStatistics {
+func generateMetrics(readIOs int64, writeIOs int64, processingTimeMilliseconds int64) *metrics {
 	var ioUsage = &IOUsage{
-		readIOs:  readIOs,
-		writeIOs: writeIOs,
+		readIOs:  &readIOs,
+		writeIOs: &writeIOs,
 	}
 	var timingInformation = &TimingInformation{
-		processingTimeMilliseconds: processingTimeMilliseconds,
+		processingTimeMilliseconds: &processingTimeMilliseconds,
 	}
-	return &statementStatistics{ioUsage, timingInformation}
+	return &metrics{ioUsage, timingInformation}
 }

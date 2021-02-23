@@ -35,8 +35,8 @@ func TestTransaction(t *testing.T) {
 		readIOs := int64(1)
 		writeIOs := int64(2)
 		processingTimeMilliseconds := int64(3)
-		qldbsessionTimingInformation := generateQldbsessionTimingInformation(&processingTimeMilliseconds)
-		qldbsessionConsumedIOs := generateQldbsessionIOUsage(&readIOs, &writeIOs)
+		qldbsessionTimingInformation := generateQldbsessionTimingInformation(processingTimeMilliseconds)
+		qldbsessionConsumedIOs := generateQldbsessionIOUsage(readIOs, writeIOs)
 
 		executeResult := qldbsession.ExecuteStatementResult{
 			FirstPage: &mockFirstPage,
@@ -204,9 +204,9 @@ func TestTransactionExecutor(t *testing.T) {
 			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
-			assert.Equal(t, int64(0), *result.statementStatistics.ioUsage.GetReadIOs())
-			assert.Equal(t, int64(0), *result.statementStatistics.ioUsage.getWriteIOs())
-			assert.Equal(t, int64(0), *result.statementStatistics.timingInformation.GetProcessingTimeMilliseconds())
+			assert.Equal(t, int64(0), *result.metrics.ioUsage.GetReadIOs())
+			assert.Equal(t, int64(0), *result.metrics.ioUsage.getWriteIOs())
+			assert.Equal(t, int64(0), *result.metrics.timingInformation.GetProcessingTimeMilliseconds())
 		})
 
 		t.Run("execute result contains IOUsage and TimingInformation", func(t *testing.T) {
@@ -216,8 +216,8 @@ func TestTransactionExecutor(t *testing.T) {
 			writeIOs := int64(2)
 			timingInfo := int64(3)
 
-			timingInformation := generateQldbsessionTimingInformation(&timingInfo)
-			consumedIOs := generateQldbsessionIOUsage(&readIOs, &writeIOs)
+			timingInformation := generateQldbsessionTimingInformation(timingInfo)
+			consumedIOs := generateQldbsessionIOUsage(readIOs, writeIOs)
 
 			mockExecuteResultWithQueryStats := mockExecuteResult
 			mockExecuteResultWithQueryStats.TimingInformation = timingInformation
@@ -229,9 +229,9 @@ func TestTransactionExecutor(t *testing.T) {
 			result, err := testExecutor.Execute("mockStatement", "mockParam1", "mockParam2")
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
-			assert.Equal(t, &timingInfo, result.statementStatistics.timingInformation.processingTimeMilliseconds)
-			assert.Equal(t, &readIOs, result.statementStatistics.ioUsage.readIOs)
-			assert.Equal(t, &writeIOs, result.statementStatistics.ioUsage.writeIOs)
+			assert.Equal(t, &timingInfo, result.metrics.timingInformation.processingTimeMilliseconds)
+			assert.Equal(t, &readIOs, result.metrics.ioUsage.readIOs)
+			assert.Equal(t, &writeIOs, result.metrics.ioUsage.writeIOs)
 		})
 	})
 
@@ -257,14 +257,14 @@ func TestTransactionExecutor(t *testing.T) {
 		timingInfo := int64(3)
 
 		testResult := Result{
-			ctx:                 context.Background(),
-			communicator:        nil,
-			txnID:               &mockID,
-			pageValues:          mockPageValues,
-			pageToken:           &mockPageToken,
-			index:               0,
-			logger:              mockLogger,
-			statementStatistics: generateStatementStatistics(&readIOs, &writeIOs, &timingInfo),
+			ctx:          context.Background(),
+			communicator: nil,
+			txnID:        &mockID,
+			pageValues:   mockPageValues,
+			pageToken:    &mockPageToken,
+			index:        0,
+			logger:       mockLogger,
+			metrics:      generateMetrics(readIOs, writeIOs, timingInfo),
 		}
 
 		t.Run("success", func(t *testing.T) {

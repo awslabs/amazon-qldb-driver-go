@@ -83,7 +83,7 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 		*timingInfo.processingTimeMilliseconds = *executeResult.TimingInformation.ProcessingTimeMilliseconds
 	}
 
-	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, &statementStatistics{ioUsage, timingInfo}, nil}, nil
+	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, &metrics{ioUsage, timingInfo}, nil}, nil
 }
 
 func (txn *transaction) commit(ctx context.Context) error {
@@ -120,7 +120,7 @@ func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResu
 	if result.Err() != nil {
 		return nil, result.Err()
 	}
-	return &BufferedResult{bufferedResults, 0, nil, result.statementStatistics}, nil
+	return &BufferedResult{bufferedResults, 0, nil, result.metrics}, nil
 }
 
 // Abort the transaction, discarding any previous statement executions within this transaction.
