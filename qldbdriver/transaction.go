@@ -70,7 +70,20 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 	if err != nil {
 		return nil, err
 	}
-	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, nil}, nil
+
+	// create IOUsage and copy the values returned in executeResult.ConsumedIOs
+	var ioUsage = &IOUsage{new(int64), new(int64)}
+	if executeResult.ConsumedIOs != nil {
+		*ioUsage.readIOs += *executeResult.ConsumedIOs.ReadIOs
+		*ioUsage.writeIOs += *executeResult.ConsumedIOs.WriteIOs
+	}
+	// create TimingInformation and copy the values returned in executeResult.TimingInformation
+	var timingInfo = &TimingInformation{new(int64)}
+	if executeResult.TimingInformation != nil {
+		*timingInfo.processingTimeMilliseconds = *executeResult.TimingInformation.ProcessingTimeMilliseconds
+	}
+
+	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, &metrics{ioUsage, timingInfo}, nil}, nil
 }
 
 func (txn *transaction) commit(ctx context.Context) error {
@@ -107,7 +120,7 @@ func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResu
 	if result.Err() != nil {
 		return nil, result.Err()
 	}
-	return &BufferedResult{bufferedResults, 0, nil}, nil
+	return &BufferedResult{bufferedResults, 0, nil, result.metrics}, nil
 }
 
 // Abort the transaction, discarding any previous statement executions within this transaction.
