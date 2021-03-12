@@ -513,13 +513,10 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			insertDocuments(driver)
 
 			result, err := driver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
-				res, err := txn.Execute(selectQuery)
+				result, err := txn.Execute(selectQuery)
 				if err != nil {
 					return nil, err
 				}
-
-				result, ok := res.(*result)
-				require.True(t, ok)
 
 				return txn.BufferResult(result)
 			})
