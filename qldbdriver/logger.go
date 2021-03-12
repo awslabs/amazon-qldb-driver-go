@@ -21,7 +21,7 @@ import (
 // Logger is an interface for a QLDBDriver logger.
 type Logger interface {
 	// Log the message using the built-in Golang logging package.
-	Log(message string)
+	Log(message string, verbosity LogLevel)
 }
 
 // LogLevel represents the valid logging verbosity levels.
@@ -45,11 +45,11 @@ func (qldbLogger *qldbLogger) log(verbosityLevel LogLevel, message string) {
 	if verbosityLevel <= qldbLogger.verbosity {
 		switch verbosityLevel {
 		case LogInfo:
-			qldbLogger.logger.Log("[INFO] " + message)
+			qldbLogger.logger.Log("[INFO] "+message, verbosityLevel)
 		case LogDebug:
-			qldbLogger.logger.Log("[DEBUG] " + message)
+			qldbLogger.logger.Log("[DEBUG] "+message, verbosityLevel)
 		default:
-			qldbLogger.logger.Log(message)
+			qldbLogger.logger.Log(message, verbosityLevel)
 		}
 	}
 }
@@ -58,18 +58,23 @@ func (qldbLogger *qldbLogger) logf(verbosityLevel LogLevel, message string, args
 	if verbosityLevel <= qldbLogger.verbosity {
 		switch verbosityLevel {
 		case LogInfo:
-			qldbLogger.logger.Log(fmt.Sprintf("[INFO] "+message, args...))
+			qldbLogger.logger.Log(fmt.Sprintf("[INFO] "+message, args...), verbosityLevel)
 		case LogDebug:
-			qldbLogger.logger.Log(fmt.Sprintf("[DEBUG] "+message, args...))
+			qldbLogger.logger.Log(fmt.Sprintf("[DEBUG] "+message, args...), verbosityLevel)
 		default:
-			qldbLogger.logger.Log(fmt.Sprintf(message, args...))
+			qldbLogger.logger.Log(fmt.Sprintf(message, args...), verbosityLevel)
 		}
 	}
 }
 
-type defaultLogger struct{}
+type defaultLogger struct {
+	// The verbosity level of the logs that the logger should receive.
+	verbosity LogLevel
+}
 
 // Log the message using the built-in Golang logging package.
-func (logger defaultLogger) Log(message string) {
-	log.Println(message)
+func (logger *defaultLogger) Log(message string, verbosity LogLevel) {
+	if verbosity <= logger.verbosity {
+		log.Println(message)
+	}
 }

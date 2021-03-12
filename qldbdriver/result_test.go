@@ -43,7 +43,7 @@ func TestResult(t *testing.T) {
 	qldbsessionTimingInformation := generateQldbsessionTimingInformation(processingTimeMilliseconds)
 	qldbsessionConsumedIOs := generateQldbsessionIOUsage(readIOs, writeIOs)
 
-	result := &Result{
+	result := &qldbResult{
 		ctx:          nil,
 		communicator: nil,
 		txnID:        nil,
@@ -64,11 +64,11 @@ func TestResult(t *testing.T) {
 			result.index = 0
 			result.pageToken = nil
 
-			assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+			assert.True(t, result.Next())
 			assert.Equal(t, mockIonBinary, result.GetCurrentData())
 
 			// No more values
-			assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+			assert.False(t, result.Next())
 			assert.Nil(t, result.GetCurrentData())
 			assert.NoError(t, result.Err())
 		})
@@ -84,15 +84,15 @@ func TestResult(t *testing.T) {
 				result.communicator = mockService
 
 				// Default page
-				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.True(t, result.Next())
 				assert.Equal(t, mockIonBinary, result.GetCurrentData())
 
 				// Fetched page
-				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.True(t, result.Next())
 				assert.Equal(t, mockNextIonBinary, result.GetCurrentData())
 
 				// No more results
-				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.False(t, result.Next())
 				assert.Nil(t, result.GetCurrentData())
 				assert.NoError(t, result.Err())
 			})
@@ -105,13 +105,13 @@ func TestResult(t *testing.T) {
 				result.communicator = mockService
 
 				// Default page
-				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.True(t, result.Next())
 				assert.Equal(t, int64(0), *result.metrics.timingInformation.GetProcessingTimeMilliseconds())
 				assert.Equal(t, int64(0), *result.metrics.ioUsage.GetReadIOs())
 				assert.Equal(t, int64(0), *result.metrics.ioUsage.getWriteIOs())
 
 				// Fetched page
-				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.True(t, result.Next())
 				assert.Equal(t, processingTimeMilliseconds, *result.metrics.timingInformation.GetProcessingTimeMilliseconds())
 				assert.Equal(t, readIOs, *result.metrics.ioUsage.GetReadIOs())
 				assert.Equal(t, writeIOs, *result.metrics.ioUsage.getWriteIOs())
@@ -126,11 +126,11 @@ func TestResult(t *testing.T) {
 				result.communicator = mockService
 
 				// Default page
-				assert.True(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.True(t, result.Next())
 				assert.Equal(t, mockIonBinary, result.GetCurrentData())
 
 				// Fetched page
-				assert.False(t, result.Next(&transactionExecutor{nil, nil}))
+				assert.False(t, result.Next())
 				assert.Nil(t, result.GetCurrentData())
 				assert.Equal(t, errMock, result.Err())
 			})
@@ -139,7 +139,7 @@ func TestResult(t *testing.T) {
 
 	t.Run("updateMetrics", func(t *testing.T) {
 		t.Run("result does not have metrics and fetch page does not have metrics", func(t *testing.T) {
-			result := Result{metrics: generateMetrics(0, 0, 0)}
+			result := qldbResult{metrics: generateMetrics(0, 0, 0)}
 			result.updateMetrics(&fetchPageResult)
 
 			assert.Equal(t, int64(0), *result.GetConsumedIOs().GetReadIOs())
@@ -148,7 +148,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("result does not have metrics and fetch page has metrics", func(t *testing.T) {
-			result := Result{metrics: generateMetrics(0, 0, 0)}
+			result := qldbResult{metrics: generateMetrics(0, 0, 0)}
 			result.updateMetrics(&fetchPageResultWithStats)
 
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
@@ -157,7 +157,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("result has metrics and fetch page does not have metrics", func(t *testing.T) {
-			result := Result{metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
+			result := qldbResult{metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
 			result.updateMetrics(&fetchPageResult)
 
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
@@ -166,7 +166,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("result has metrics and fetch page has metrics", func(t *testing.T) {
-			result := Result{metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
+			result := qldbResult{metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
 
 			readIOsBeforeUpdate := result.GetConsumedIOs().GetReadIOs()
 			writeIOsBeforeUpdate := result.GetConsumedIOs().getWriteIOs()

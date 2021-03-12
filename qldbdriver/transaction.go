@@ -25,9 +25,9 @@ import (
 // Transaction represents an active QLDB transaction.
 type Transaction interface {
 	// Execute a statement with any parameters within this transaction.
-	Execute(statement string, parameters ...interface{}) (*Result, error)
-	// Buffer a Result into a BufferedResult to use outside the context of this transaction.
-	BufferResult(result *Result) (*BufferedResult, error)
+	Execute(statement string, parameters ...interface{}) (Result, error)
+	// Buffer a qldbResult into a BufferedResult to use outside the context of this transaction.
+	BufferResult(result *qldbResult) (*BufferedResult, error)
 	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
 }
@@ -39,7 +39,7 @@ type transaction struct {
 	commitHash   *qldbHash
 }
 
-func (txn *transaction) execute(ctx context.Context, statement string, parameters ...interface{}) (*Result, error) {
+func (txn *transaction) execute(ctx context.Context, statement string, parameters ...interface{}) (Result, error) {
 	executeHash, err := toQLDBHash(statement)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 		*timingInfo.processingTimeMilliseconds = *executeResult.TimingInformation.ProcessingTimeMilliseconds
 	}
 
-	return &Result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, &metrics{ioUsage, timingInfo}, nil}, nil
+	return &qldbResult{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, &metrics{ioUsage, timingInfo}, nil}, nil
 }
 
 func (txn *transaction) commit(ctx context.Context) error {
@@ -107,14 +107,14 @@ type transactionExecutor struct {
 }
 
 // Execute a statement with any parameters within this transaction.
-func (executor *transactionExecutor) Execute(statement string, parameters ...interface{}) (*Result, error) {
+func (executor *transactionExecutor) Execute(statement string, parameters ...interface{}) (Result, error) {
 	return executor.txn.execute(executor.ctx, statement, parameters...)
 }
 
-// Buffer a Result into a BufferedResult to use outside the context of this transaction.
-func (executor *transactionExecutor) BufferResult(result *Result) (*BufferedResult, error) {
+// Buffer a qldbResult into a BufferedResult to use outside the context of this transaction.
+func (executor *transactionExecutor) BufferResult(result *qldbResult) (*BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
-	for result.Next(executor) {
+	for result.Next() {
 		bufferedResults = append(bufferedResults, result.GetCurrentData())
 	}
 	if result.Err() != nil {

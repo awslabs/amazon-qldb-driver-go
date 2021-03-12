@@ -62,13 +62,18 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	retryPolicy := RetryPolicy{
 		MaxRetryLimit: 4,
 		Backoff:       ExponentialBackoffStrategy{SleepBase: time.Duration(10) * time.Millisecond, SleepCap: time.Duration(5000) * time.Millisecond}}
-	options := &DriverOptions{RetryPolicy: retryPolicy, MaxConcurrentTransactions: 50, Logger: defaultLogger{}, LoggerVerbosity: LogInfo}
+	options := &DriverOptions{RetryPolicy: retryPolicy, MaxConcurrentTransactions: 50, Logger: &defaultLogger{}, LoggerVerbosity: LogInfo}
 
 	for _, fn := range fns {
 		fn(options)
 	}
 	if options.MaxConcurrentTransactions < 1 {
 		return nil, &qldbDriverError{"MaxConcurrentTransactions must be 1 or greater."}
+	}
+
+	// Ensure logger's internal verbosity is consistent with the option's verbosity for when defaultLogger is used.
+	if defLogger, ok := options.Logger.(*defaultLogger); ok {
+		defLogger.verbosity = options.LoggerVerbosity
 	}
 
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
@@ -171,8 +176,9 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		tableNames := make([]string, 0)
-		for result.Next(txn) {
+		for result.Next() {
 			nameStruct := new(tableName)
 			err = ion.Unmarshal(result.GetCurrentData(), &nameStruct)
 			if err != nil {

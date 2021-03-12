@@ -19,8 +19,17 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
 
-// Result is a cursor over a result set from a QLDB statement.
-type Result struct {
+// Result is an interface for a Result Set cursor.
+type Result interface {
+	Next() bool
+	GetCurrentData() []byte
+	GetConsumedIOs() *IOUsage
+	GetTimingInformation() *TimingInformation
+	Err() error
+}
+
+// qldbResult is a cursor over a result set from a QLDB statement.
+type qldbResult struct {
 	ctx          context.Context
 	communicator qldbService
 	txnID        *string
@@ -37,7 +46,7 @@ type Result struct {
 // Returns true if there was another row of data to advance. Returns false if there is no more data or if an error occurred.
 // After a successful call to Next, call GetCurrentData to retrieve the current row of data.
 // After an unsuccessful call to Next, check Err to see if Next returned false because an error happened or because there is no more data.
-func (result *Result) Next(txn Transaction) bool {
+func (result *qldbResult) Next() bool {
 	result.ionBinary = nil
 	result.err = nil
 
@@ -50,7 +59,7 @@ func (result *Result) Next(txn Transaction) bool {
 		if result.err != nil {
 			return false
 		}
-		return result.Next(txn)
+		return result.Next()
 	}
 
 	result.ionBinary = result.pageValues[result.index].IonBinary
@@ -59,11 +68,12 @@ func (result *Result) Next(txn Transaction) bool {
 	return true
 }
 
-func (result *Result) getNextPage() error {
+func (result *qldbResult) getNextPage() error {
 	nextPage, err := result.communicator.fetchPage(result.ctx, result.pageToken, result.txnID)
 	if err != nil {
 		return err
 	}
+
 	result.pageValues = nextPage.Page.Values
 	result.pageToken = nextPage.Page.NextPageToken
 	result.index = 0
@@ -71,7 +81,7 @@ func (result *Result) getNextPage() error {
 	return nil
 }
 
-func (result *Result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult) {
+func (result *qldbResult) updateMetrics(fetchPageResult *qldbsession.FetchPageResult) {
 	if fetchPageResult.ConsumedIOs != nil {
 		*result.metrics.ioUsage.readIOs += *fetchPageResult.ConsumedIOs.ReadIOs
 		*result.metrics.ioUsage.writeIOs += *fetchPageResult.ConsumedIOs.WriteIOs
@@ -83,7 +93,7 @@ func (result *Result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult
 }
 
 // GetConsumedIOs returns the statement statistics for the current number of read IO requests that were consumed. The statistics are stateful.
-func (result *Result) GetConsumedIOs() *IOUsage {
+func (result *qldbResult) GetConsumedIOs() *IOUsage {
 	readIOs := *result.metrics.ioUsage.readIOs
 	writeIOs := *result.metrics.ioUsage.writeIOs
 	return &IOUsage{
@@ -93,7 +103,7 @@ func (result *Result) GetConsumedIOs() *IOUsage {
 }
 
 // GetTimingInformation returns the statement statistics for the current server-side processing time. The statistics are stateful.
-func (result *Result) GetTimingInformation() *TimingInformation {
+func (result *qldbResult) GetTimingInformation() *TimingInformation {
 	timingInformation := *result.metrics.timingInformation.processingTimeMilliseconds
 	return &TimingInformation{
 		processingTimeMilliseconds: &timingInformation,
@@ -102,13 +112,13 @@ func (result *Result) GetTimingInformation() *TimingInformation {
 
 // GetCurrentData returns the current row of data in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
 // See https://github.com/amzn/ion-go for more information.
-func (result *Result) GetCurrentData() []byte {
+func (result *qldbResult) GetCurrentData() []byte {
 	return result.ionBinary
 }
 
 // Err returns an error if a previous call to Next has failed.
 // The returned error will be nil if the previous call to Next succeeded.
-func (result *Result) Err() error {
+func (result *qldbResult) Err() error {
 	return result.err
 }
 
@@ -149,6 +159,12 @@ func (result *BufferedResult) GetConsumedIOs() *IOUsage {
 // GetTimingInformation returns the statement statistics for the total server-side processing time.
 func (result *BufferedResult) GetTimingInformation() *TimingInformation {
 	return result.metrics.timingInformation
+}
+
+// Err is defined so BufferedResult will formally implement the Result interface.
+// Currently there are no error cases so we just return nil.
+func (result *BufferedResult) Err() error {
+	return nil
 }
 
 // IOUsage contains metrics for the amount of IO requests that were consumed.

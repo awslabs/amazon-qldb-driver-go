@@ -68,7 +68,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			return nil, err
 		}
 		count := 0
-		for result.Next(txn) {
+		for result.Next() {
 			count++
 		}
 		if result.Err() != nil {
@@ -161,7 +161,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			if !result.Next(txn) {
+			if !result.Next() {
 				return nil, result.Err()
 			}
 			exprStruct := new(exprName)
@@ -217,7 +217,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			if result.Next(txn) {
+			if result.Next() {
 				decodedResult := ""
 				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
@@ -257,7 +257,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			if result.Next(txn) {
+			if result.Next() {
 				decodedResult := ""
 				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
@@ -299,7 +299,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 				return nil, err
 			}
 			results := make([]string, 0)
-			for result.Next(txn) {
+			for result.Next() {
 				decodedResult := "temp"
 				decodedErr := ion.Unmarshal(result.GetCurrentData(), &decodedResult)
 				if decodedErr != nil {
@@ -353,7 +353,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			if !result.Next(txn) {
+			if !result.Next() {
 				return nil, result.Err()
 			}
 			countStruct := new(rowCount)
@@ -404,7 +404,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			if !result.Next(txn) {
+			if !result.Next() {
 				return nil, result.Err()
 			}
 			countStruct := new(rowCount)
@@ -484,7 +484,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 
 				totalReadIOs := int64(0)
 				totalProcessingTimeMilliseconds := int64(0)
-				for result.Next(txn) {
+				for result.Next() {
 					// IOUsage test
 					ioUsage := result.GetConsumedIOs()
 					require.NotNil(t, ioUsage)
@@ -517,7 +517,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				return txn.BufferResult(result)
+				return txn.BufferResult(result.(*qldbResult))
 			})
 			require.NoError(t, err)
 
@@ -566,7 +566,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				if !result.Next(txn) {
+				if !result.Next() {
 					return nil, result.Err()
 				}
 				ionReceiver := new(Anon)
@@ -597,7 +597,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 					if err != nil {
 						return nil, err
 					}
-					if !result.Next(txn) {
+					if !result.Next() {
 						return nil, result.Err()
 					}
 					err = ion.Unmarshal(result.GetCurrentData(), ionReceiver)
@@ -753,7 +753,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 					if err != nil {
 						return nil, err
 					}
-					if !result.Next(txn) {
+					if !result.Next() {
 						return nil, result.Err()
 					}
 					err = ion.Unmarshal(result.GetCurrentData(), ionReceiver)
@@ -875,7 +875,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				if !result.Next(txn) {
+				if !result.Next() {
 					return nil, result.Err()
 				}
 				ionReceiver := ""
@@ -914,7 +914,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				if !result.Next(txn) {
+				if !result.Next() {
 					return nil, result.Err()
 				}
 				ionReceiver := new(Anon)
