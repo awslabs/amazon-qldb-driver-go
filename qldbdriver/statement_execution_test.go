@@ -517,7 +517,11 @@ func TestStatementExecutionIntegration(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				return txn.BufferResult(result.(*qldbResult))
+
+				qResult, ok := result.(*qldbResult)
+				require.True(t, ok)
+
+				return txn.BufferResult(qResult)
 			})
 			require.NoError(t, err)
 
