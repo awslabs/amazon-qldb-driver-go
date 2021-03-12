@@ -114,7 +114,7 @@ func (executor *transactionExecutor) Execute(statement string, parameters ...int
 // Buffer a result into a BufferedResult to use outside the context of this transaction.
 func (executor *transactionExecutor) BufferResult(result *result) (*BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
-	for result.Next() {
+	for result.Next(executor) {
 		bufferedResults = append(bufferedResults, result.GetCurrentData())
 	}
 	if result.Err() != nil {

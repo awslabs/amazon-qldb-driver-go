@@ -64,11 +64,11 @@ func TestResult(t *testing.T) {
 			res.index = 0
 			res.pageToken = nil
 
-			assert.True(t, res.Next())
+			assert.True(t, res.Next(&transactionExecutor{nil, nil}))
 			assert.Equal(t, mockIonBinary, res.GetCurrentData())
 
 			// No more values
-			assert.False(t, res.Next())
+			assert.False(t, res.Next(&transactionExecutor{nil, nil}))
 			assert.Nil(t, res.GetCurrentData())
 			assert.NoError(t, res.Err())
 		})
@@ -84,15 +84,15 @@ func TestResult(t *testing.T) {
 				res.communicator = mockService
 
 				// Default page
-				assert.True(t, res.Next())
+				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Equal(t, mockIonBinary, res.GetCurrentData())
 
 				// Fetched page
-				assert.True(t, res.Next())
+				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Equal(t, mockNextIonBinary, res.GetCurrentData())
 
 				// No more results
-				assert.False(t, res.Next())
+				assert.False(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Nil(t, res.GetCurrentData())
 				assert.NoError(t, res.Err())
 			})
@@ -105,13 +105,13 @@ func TestResult(t *testing.T) {
 				res.communicator = mockService
 
 				// Default page
-				assert.True(t, res.Next())
+				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Equal(t, int64(0), *res.metrics.timingInformation.GetProcessingTimeMilliseconds())
 				assert.Equal(t, int64(0), *res.metrics.ioUsage.GetReadIOs())
 				assert.Equal(t, int64(0), *res.metrics.ioUsage.getWriteIOs())
 
 				// Fetched page
-				assert.True(t, res.Next())
+				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Equal(t, processingTimeMilliseconds, *res.metrics.timingInformation.GetProcessingTimeMilliseconds())
 				assert.Equal(t, readIOs, *res.metrics.ioUsage.GetReadIOs())
 				assert.Equal(t, writeIOs, *res.metrics.ioUsage.getWriteIOs())
@@ -126,11 +126,11 @@ func TestResult(t *testing.T) {
 				res.communicator = mockService
 
 				// Default page
-				assert.True(t, res.Next())
+				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Equal(t, mockIonBinary, res.GetCurrentData())
 
 				// Fetched page
-				assert.False(t, res.Next())
+				assert.False(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Nil(t, res.GetCurrentData())
 				assert.Equal(t, errMock, res.Err())
 			})

@@ -21,7 +21,7 @@ import (
 
 // Result is an interface for a Result Set cursor.
 type Result interface {
-	Next() bool
+	Next(txn Transaction) bool
 	GetCurrentData() []byte
 	GetConsumedIOs() *IOUsage
 	GetTimingInformation() *TimingInformation
@@ -46,7 +46,7 @@ type result struct {
 // Returns true if there was another row of data to advance. Returns false if there is no more data or if an error occurred.
 // After a successful call to Next, call GetCurrentData to retrieve the current row of data.
 // After an unsuccessful call to Next, check Err to see if Next returned false because an error happened or because there is no more data.
-func (result *result) Next() bool {
+func (result *result) Next(txn Transaction) bool {
 	result.ionBinary = nil
 	result.err = nil
 
@@ -59,7 +59,7 @@ func (result *result) Next() bool {
 		if result.err != nil {
 			return false
 		}
-		return result.Next()
+		return result.Next(txn)
 	}
 
 	result.ionBinary = result.pageValues[result.index].IonBinary
@@ -159,12 +159,6 @@ func (result *BufferedResult) GetConsumedIOs() *IOUsage {
 // GetTimingInformation returns the statement statistics for the total server-side processing time.
 func (result *BufferedResult) GetTimingInformation() *TimingInformation {
 	return result.metrics.timingInformation
-}
-
-// Err is defined so BufferedResult will formally implement the Result interface.
-// Currently there are no error cases so we just return nil.
-func (result *BufferedResult) Err() error {
-	return nil
 }
 
 // IOUsage contains metrics for the amount of IO requests that were consumed.
