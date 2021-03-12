@@ -26,8 +26,8 @@ import (
 type Transaction interface {
 	// Execute a statement with any parameters within this transaction.
 	Execute(statement string, parameters ...interface{}) (Result, error)
-	// Buffer a qldbResult into a BufferedResult to use outside the context of this transaction.
-	BufferResult(result *qldbResult) (*BufferedResult, error)
+	// Buffer a result into a BufferedResult to use outside the context of this transaction.
+	BufferResult(result *result) (*BufferedResult, error)
 	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
 }
@@ -83,7 +83,7 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 		*timingInfo.processingTimeMilliseconds = *executeResult.TimingInformation.ProcessingTimeMilliseconds
 	}
 
-	return &qldbResult{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, &metrics{ioUsage, timingInfo}, nil}, nil
+	return &result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, &metrics{ioUsage, timingInfo}, nil}, nil
 }
 
 func (txn *transaction) commit(ctx context.Context) error {
@@ -111,8 +111,8 @@ func (executor *transactionExecutor) Execute(statement string, parameters ...int
 	return executor.txn.execute(executor.ctx, statement, parameters...)
 }
 
-// Buffer a qldbResult into a BufferedResult to use outside the context of this transaction.
-func (executor *transactionExecutor) BufferResult(result *qldbResult) (*BufferedResult, error) {
+// Buffer a result into a BufferedResult to use outside the context of this transaction.
+func (executor *transactionExecutor) BufferResult(result *result) (*BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
 	for result.Next() {
 		bufferedResults = append(bufferedResults, result.GetCurrentData())

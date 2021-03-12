@@ -67,14 +67,9 @@ func (qldbLogger *qldbLogger) logf(verbosityLevel LogLevel, message string, args
 	}
 }
 
-type defaultLogger struct {
-	// The verbosity level of the logs that the logger should receive.
-	verbosity LogLevel
-}
+type defaultLogger struct{}
 
 // Log the message using the built-in Golang logging package.
 func (logger *defaultLogger) Log(message string, verbosity LogLevel) {
-	if verbosity <= logger.verbosity {
-		log.Println(message)
-	}
+	log.Println(message)
 }

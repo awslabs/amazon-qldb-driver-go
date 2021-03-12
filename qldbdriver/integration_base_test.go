@@ -49,7 +49,7 @@ func createTestBase() *testBase {
 	sess, err := AWSSession.NewSession(aws.NewConfig().WithRegion(region))
 	mySession := AWSSession.Must(sess, err)
 	client := qldb.New(mySession)
-	logger := &defaultLogger{LogInfo}
+	logger := &defaultLogger{}
 	ledgerName := ledger
 	regionName := region
 	return &testBase{client, &ledgerName, &regionName, logger}

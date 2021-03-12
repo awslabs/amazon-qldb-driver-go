@@ -67,13 +67,9 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	for _, fn := range fns {
 		fn(options)
 	}
+
 	if options.MaxConcurrentTransactions < 1 {
 		return nil, &qldbDriverError{"MaxConcurrentTransactions must be 1 or greater."}
-	}
-
-	// Ensure logger's internal verbosity is consistent with the option's verbosity for when defaultLogger is used.
-	if defLogger, ok := options.Logger.(*defaultLogger); ok {
-		defLogger.verbosity = options.LoggerVerbosity
 	}
 
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
