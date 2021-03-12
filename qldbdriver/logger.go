@@ -70,6 +70,6 @@ func (qldbLogger *qldbLogger) logf(verbosityLevel LogLevel, message string, args
 type defaultLogger struct{}
 
 // Log the message using the built-in Golang logging package.
-func (logger *defaultLogger) Log(message string, verbosity LogLevel) {
+func (logger defaultLogger) Log(message string, verbosity LogLevel) {
 	log.Println(message)
 }

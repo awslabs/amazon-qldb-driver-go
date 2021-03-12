@@ -62,7 +62,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	retryPolicy := RetryPolicy{
 		MaxRetryLimit: 4,
 		Backoff:       ExponentialBackoffStrategy{SleepBase: time.Duration(10) * time.Millisecond, SleepCap: time.Duration(5000) * time.Millisecond}}
-	options := &DriverOptions{RetryPolicy: retryPolicy, MaxConcurrentTransactions: 50, Logger: &defaultLogger{}, LoggerVerbosity: LogInfo}
+	options := &DriverOptions{RetryPolicy: retryPolicy, MaxConcurrentTransactions: 50, Logger: defaultLogger{}, LoggerVerbosity: LogInfo}
 
 	for _, fn := range fns {
 		fn(options)

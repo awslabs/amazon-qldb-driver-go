@@ -122,8 +122,8 @@ func (result *result) Err() error {
 	return result.err
 }
 
-// BufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
-type BufferedResult struct {
+// bufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
+type bufferedResult struct {
 	values    [][]byte
 	index     int
 	ionBinary []byte
@@ -133,7 +133,7 @@ type BufferedResult struct {
 // Next advances to the next row of data in the current result set.
 // Returns true if there was another row of data to advance. Returns false if there is no more data.
 // After a successful call to Next, call GetCurrentData to retrieve the current row of data.
-func (result *BufferedResult) Next() bool {
+func (result *bufferedResult) Next() bool {
 	result.ionBinary = nil
 
 	if result.index >= len(result.values) {
@@ -147,17 +147,17 @@ func (result *BufferedResult) Next() bool {
 
 // GetCurrentData returns the current row of data in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
 // See https://github.com/amzn/ion-go for more information.
-func (result *BufferedResult) GetCurrentData() []byte {
+func (result *bufferedResult) GetCurrentData() []byte {
 	return result.ionBinary
 }
 
 // GetConsumedIOs returns the statement statistics for the total number of read IO requests that were consumed.
-func (result *BufferedResult) GetConsumedIOs() *IOUsage {
+func (result *bufferedResult) GetConsumedIOs() *IOUsage {
 	return result.metrics.ioUsage
 }
 
 // GetTimingInformation returns the statement statistics for the total server-side processing time.
-func (result *BufferedResult) GetTimingInformation() *TimingInformation {
+func (result *bufferedResult) GetTimingInformation() *TimingInformation {
 	return result.metrics.timingInformation
 }
 

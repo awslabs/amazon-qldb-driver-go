@@ -197,7 +197,7 @@ func TestBufferedResult(t *testing.T) {
 	readIOs := int64(1)
 	writeIOs := int64(2)
 	processingTimeMilliseconds := int64(3)
-	result := BufferedResult{values: byteSliceSlice, index: 0, metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
+	result := bufferedResult{values: byteSliceSlice, index: 0, metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
 
 	t.Run("Next", func(t *testing.T) {
 		result.index = 0

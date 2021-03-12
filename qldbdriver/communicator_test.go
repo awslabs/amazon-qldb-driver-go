@@ -229,7 +229,7 @@ func TestSendCommand(t *testing.T) {
 	assert.Equal(t, err, errMock)
 }
 
-var mockLogger = &qldbLogger{&defaultLogger{}, LogOff}
+var mockLogger = &qldbLogger{defaultLogger{}, LogOff}
 var errMock = errors.New("mock")
 
 var mockSessionToken = "token"
