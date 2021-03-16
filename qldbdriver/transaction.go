@@ -26,8 +26,8 @@ import (
 type Transaction interface {
 	// Execute a statement with any parameters within this transaction.
 	Execute(statement string, parameters ...interface{}) (Result, error)
-	// Buffer a Result into a bufferedResult to use outside the context of this transaction.
-	BufferResult(res Result) (*bufferedResult, error)
+	// Buffer a Result into a BufferedResult to use outside the context of this transaction.
+	BufferResult(res Result) (BufferedResult, error)
 	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
 }
@@ -111,8 +111,8 @@ func (executor *transactionExecutor) Execute(statement string, parameters ...int
 	return executor.txn.execute(executor.ctx, statement, parameters...)
 }
 
-// Buffer a result into a bufferedResult to use outside the context of this transaction.
-func (executor *transactionExecutor) BufferResult(res Result) (*bufferedResult, error) {
+// Buffer a Result into a BufferedResult to use outside the context of this transaction.
+func (executor *transactionExecutor) BufferResult(res Result) (BufferedResult, error) {
 	bufferedResults := make([][]byte, 0)
 	for res.Next(executor) {
 		bufferedResults = append(bufferedResults, res.GetCurrentData())

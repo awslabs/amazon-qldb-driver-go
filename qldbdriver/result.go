@@ -122,6 +122,14 @@ func (result *result) Err() error {
 	return result.err
 }
 
+// BufferedResult is an interface for a buffered result.
+type BufferedResult interface {
+	Next() bool
+	GetCurrentData() []byte
+	GetConsumedIOs() *IOUsage
+	GetTimingInformation() *TimingInformation
+}
+
 // bufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
 type bufferedResult struct {
 	values    [][]byte
@@ -153,11 +161,17 @@ func (result *bufferedResult) GetCurrentData() []byte {
 
 // GetConsumedIOs returns the statement statistics for the total number of read IO requests that were consumed.
 func (result *bufferedResult) GetConsumedIOs() *IOUsage {
+	if result.metrics == nil {
+		return nil
+	}
 	return result.metrics.ioUsage
 }
 
 // GetTimingInformation returns the statement statistics for the total server-side processing time.
 func (result *bufferedResult) GetTimingInformation() *TimingInformation {
+	if result.metrics == nil {
+		return nil
+	}
 	return result.metrics.timingInformation
 }
 

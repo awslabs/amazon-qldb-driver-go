@@ -522,7 +522,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			bufferedResult := result.(*bufferedResult)
+			bufferedResult := result.(BufferedResult)
 
 			// IOUsage test
 			ioUsage := bufferedResult.GetConsumedIOs()
