@@ -174,6 +174,7 @@ type IOUsage struct {
 	writeIOs *int64
 }
 
+// NewIOUsage creates a new instance of IOUsage.
 func NewIOUsage(readIOs int64, writeIOs int64) *IOUsage {
 	return &IOUsage{&readIOs, &writeIOs}
 }
@@ -193,6 +194,7 @@ type TimingInformation struct {
 	processingTimeMilliseconds *int64
 }
 
+// NewTimingInformation creates a new instance of TimingInformation.
 func NewTimingInformation(processingTimeMilliseconds int64) *TimingInformation {
 	return &TimingInformation{&processingTimeMilliseconds}
 }
