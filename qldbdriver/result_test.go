@@ -51,7 +51,8 @@ func TestResult(t *testing.T) {
 		pageToken:    nil,
 		index:        0,
 		logger:       nil,
-		metrics:      generateMetrics(0, 0, 0),
+		ioUsage:      NewIOUsage(0, 0),
+		timingInfo:   NewTimingInformation(0),
 	}
 
 	fetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
@@ -106,15 +107,15 @@ func TestResult(t *testing.T) {
 
 				// Default page
 				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, int64(0), *res.metrics.timingInformation.GetProcessingTimeMilliseconds())
-				assert.Equal(t, int64(0), *res.metrics.ioUsage.GetReadIOs())
-				assert.Equal(t, int64(0), *res.metrics.ioUsage.getWriteIOs())
+				assert.Equal(t, int64(0), *res.ioUsage.GetReadIOs())
+				assert.Equal(t, int64(0), *res.ioUsage.getWriteIOs())
+				assert.Equal(t, int64(0), *res.timingInfo.GetProcessingTimeMilliseconds())
 
 				// Fetched page
 				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
-				assert.Equal(t, processingTimeMilliseconds, *res.metrics.timingInformation.GetProcessingTimeMilliseconds())
-				assert.Equal(t, readIOs, *res.metrics.ioUsage.GetReadIOs())
-				assert.Equal(t, writeIOs, *res.metrics.ioUsage.getWriteIOs())
+				assert.Equal(t, readIOs, *res.ioUsage.GetReadIOs())
+				assert.Equal(t, writeIOs, *res.ioUsage.getWriteIOs())
+				assert.Equal(t, processingTimeMilliseconds, *res.timingInfo.GetProcessingTimeMilliseconds())
 			})
 
 			t.Run("fail", func(t *testing.T) {
@@ -139,7 +140,7 @@ func TestResult(t *testing.T) {
 
 	t.Run("updateMetrics", func(t *testing.T) {
 		t.Run("res does not have metrics and fetch page does not have metrics", func(t *testing.T) {
-			res := result{metrics: generateMetrics(0, 0, 0)}
+			res := result{ioUsage: NewIOUsage(0, 0), timingInfo: NewTimingInformation(0)}
 			res.updateMetrics(&fetchPageResult)
 
 			assert.Equal(t, int64(0), *res.GetConsumedIOs().GetReadIOs())
@@ -148,7 +149,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("res does not have metrics and fetch page has metrics", func(t *testing.T) {
-			result := result{metrics: generateMetrics(0, 0, 0)}
+			result := result{ioUsage: NewIOUsage(0, 0), timingInfo: NewTimingInformation(0)}
 			result.updateMetrics(&fetchPageResultWithStats)
 
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
@@ -157,7 +158,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("res has metrics and fetch page does not have metrics", func(t *testing.T) {
-			result := result{metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
+			result := result{ioUsage: NewIOUsage(readIOs, writeIOs), timingInfo: NewTimingInformation(processingTimeMilliseconds)}
 			result.updateMetrics(&fetchPageResult)
 
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
@@ -166,7 +167,7 @@ func TestResult(t *testing.T) {
 		})
 
 		t.Run("res has metrics and fetch page has metrics", func(t *testing.T) {
-			result := result{metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
+			result := result{ioUsage: NewIOUsage(readIOs, writeIOs), timingInfo: NewTimingInformation(processingTimeMilliseconds)}
 
 			readIOsBeforeUpdate := result.GetConsumedIOs().GetReadIOs()
 			writeIOsBeforeUpdate := result.GetConsumedIOs().getWriteIOs()
@@ -197,7 +198,11 @@ func TestBufferedResult(t *testing.T) {
 	readIOs := int64(1)
 	writeIOs := int64(2)
 	processingTimeMilliseconds := int64(3)
-	result := bufferedResult{values: byteSliceSlice, index: 0, metrics: generateMetrics(readIOs, writeIOs, processingTimeMilliseconds)}
+	result := bufferedResult{
+		values:     byteSliceSlice,
+		index:      0,
+		ioUsage:    NewIOUsage(readIOs, writeIOs),
+		timingInfo: NewTimingInformation(processingTimeMilliseconds)}
 
 	t.Run("Next", func(t *testing.T) {
 		result.index = 0
@@ -258,15 +263,4 @@ func generateQldbsessionTimingInformation(processingTimeMilliseconds int64) *qld
 	return &qldbsession.TimingInformation{
 		ProcessingTimeMilliseconds: &processingTimeMilliseconds,
 	}
-}
-
-func generateMetrics(readIOs int64, writeIOs int64, processingTimeMilliseconds int64) *metrics {
-	var ioUsage = &IOUsage{
-		readIOs:  &readIOs,
-		writeIOs: &writeIOs,
-	}
-	var timingInformation = &TimingInformation{
-		processingTimeMilliseconds: &processingTimeMilliseconds,
-	}
-	return &metrics{ioUsage, timingInformation}
 }

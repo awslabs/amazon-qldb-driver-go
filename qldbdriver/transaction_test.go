@@ -59,12 +59,9 @@ func TestTransaction(t *testing.T) {
 			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&executeResult, nil)
 			testTransaction.communicator = mockService
 
-			res, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
+			result, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
 			assert.NoError(t, err)
-			assert.NotNil(t, res)
-
-			result, ok := res.(*result)
-			require.True(t, ok)
+			assert.NotNil(t, result)
 
 			assert.Equal(t, testTransaction.communicator, result.communicator)
 			assert.Equal(t, testTransaction.id, result.txnID)
@@ -80,12 +77,9 @@ func TestTransaction(t *testing.T) {
 			mockService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&executeResultWithQueryStats, nil)
 			testTransaction.communicator = mockService
 
-			res, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
+			result, err := testTransaction.execute(context.Background(), "mockStatement", "mockParam1", "mockParam2")
 			assert.NoError(t, err)
-			assert.NotNil(t, res)
-
-			result, ok := res.(*result)
-			require.True(t, ok)
+			assert.NotNil(t, result)
 
 			assert.Equal(t, testTransaction.communicator, result.communicator)
 			assert.Equal(t, testTransaction.id, result.txnID)
@@ -221,9 +215,9 @@ func TestTransactionExecutor(t *testing.T) {
 			result, ok := res.(*result)
 			require.True(t, ok)
 
-			assert.Equal(t, int64(0), *result.metrics.ioUsage.GetReadIOs())
-			assert.Equal(t, int64(0), *result.metrics.ioUsage.getWriteIOs())
-			assert.Equal(t, int64(0), *result.metrics.timingInformation.GetProcessingTimeMilliseconds())
+			assert.Equal(t, int64(0), *result.ioUsage.GetReadIOs())
+			assert.Equal(t, int64(0), *result.ioUsage.getWriteIOs())
+			assert.Equal(t, int64(0), *result.timingInfo.GetProcessingTimeMilliseconds())
 		})
 
 		t.Run("execute result contains IOUsage and TimingInformation", func(t *testing.T) {
@@ -250,9 +244,9 @@ func TestTransactionExecutor(t *testing.T) {
 			result, ok := res.(*result)
 			require.True(t, ok)
 
-			assert.Equal(t, &timingInfo, result.metrics.timingInformation.processingTimeMilliseconds)
-			assert.Equal(t, &readIOs, result.metrics.ioUsage.readIOs)
-			assert.Equal(t, &writeIOs, result.metrics.ioUsage.writeIOs)
+			assert.Equal(t, &readIOs, result.ioUsage.readIOs)
+			assert.Equal(t, &writeIOs, result.ioUsage.writeIOs)
+			assert.Equal(t, &timingInfo, result.timingInfo.processingTimeMilliseconds)
 		})
 	})
 
@@ -275,7 +269,7 @@ func TestTransactionExecutor(t *testing.T) {
 		mockPageToken := "mockToken"
 		readIOs := int64(1)
 		writeIOs := int64(2)
-		timingInfo := int64(3)
+		processingTime := int64(3)
 
 		testResult := result{
 			ctx:          context.Background(),
@@ -285,7 +279,8 @@ func TestTransactionExecutor(t *testing.T) {
 			pageToken:    &mockPageToken,
 			index:        0,
 			logger:       mockLogger,
-			metrics:      generateMetrics(readIOs, writeIOs, timingInfo),
+			ioUsage:      NewIOUsage(readIOs, writeIOs),
+			timingInfo:   NewTimingInformation(processingTime),
 		}
 
 		t.Run("success", func(t *testing.T) {
@@ -299,7 +294,7 @@ func TestTransactionExecutor(t *testing.T) {
 			assert.Equal(t, mockIonBinary, bufferedResult.GetCurrentData())
 			assert.True(t, bufferedResult.Next())
 			assert.Equal(t, mockNextIonBinary, bufferedResult.GetCurrentData())
-			assert.Equal(t, timingInfo, *bufferedResult.GetTimingInformation().GetProcessingTimeMilliseconds())
+			assert.Equal(t, processingTime, *bufferedResult.GetTimingInformation().GetProcessingTimeMilliseconds())
 			assert.Equal(t, readIOs, *bufferedResult.GetConsumedIOs().GetReadIOs())
 			assert.Equal(t, writeIOs, *bufferedResult.GetConsumedIOs().getWriteIOs())
 		})
