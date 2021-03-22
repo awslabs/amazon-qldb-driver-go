@@ -19,7 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 )
 
-// Result is an interface for a Result Set cursor.
+// Result is a cursor over a result set from a QLDB statement.
 type Result interface {
 	Next(txn Transaction) bool
 	GetCurrentData() []byte
@@ -28,7 +28,6 @@ type Result interface {
 	Err() error
 }
 
-// result is a cursor over a result set from a QLDB statement.
 type result struct {
 	ctx          context.Context
 	communicator qldbService
@@ -121,7 +120,7 @@ func (result *result) Err() error {
 	return result.err
 }
 
-// BufferedResult is an interface for a buffered result.
+// BufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
 type BufferedResult interface {
 	Next() bool
 	GetCurrentData() []byte
@@ -129,7 +128,6 @@ type BufferedResult interface {
 	GetTimingInformation() *TimingInformation
 }
 
-// bufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
 type bufferedResult struct {
 	values     [][]byte
 	index      int
