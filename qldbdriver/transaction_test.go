@@ -68,7 +68,7 @@ func TestTransaction(t *testing.T) {
 			assert.Equal(t, &mockNextPageToken, result.pageToken)
 			assert.Equal(t, mockPageValues, result.pageValues)
 			assert.Equal(t, int64(0), *result.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, int64(0), *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, int64(0), *result.GetConsumedIOs().GetWriteIOs())
 			assert.Equal(t, int64(0), *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
@@ -86,7 +86,7 @@ func TestTransaction(t *testing.T) {
 			assert.Equal(t, &mockNextPageToken, result.pageToken)
 			assert.Equal(t, mockPageValues, result.pageValues)
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, writeIOs, *result.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, writeIOs, *result.GetConsumedIOs().GetWriteIOs())
 			assert.Equal(t, processingTimeMilliseconds, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
@@ -216,7 +216,7 @@ func TestTransactionExecutor(t *testing.T) {
 			require.True(t, ok)
 
 			assert.Equal(t, int64(0), *result.ioUsage.GetReadIOs())
-			assert.Equal(t, int64(0), *result.ioUsage.getWriteIOs())
+			assert.Equal(t, int64(0), *result.ioUsage.GetWriteIOs())
 			assert.Equal(t, int64(0), *result.timingInfo.GetProcessingTimeMilliseconds())
 		})
 
@@ -279,8 +279,8 @@ func TestTransactionExecutor(t *testing.T) {
 			pageToken:    &mockPageToken,
 			index:        0,
 			logger:       mockLogger,
-			ioUsage:      NewIOUsage(readIOs, writeIOs),
-			timingInfo:   NewTimingInformation(processingTime),
+			ioUsage:      newIOUsage(readIOs, writeIOs),
+			timingInfo:   newTimingInformation(processingTime),
 		}
 
 		t.Run("success", func(t *testing.T) {
@@ -296,7 +296,7 @@ func TestTransactionExecutor(t *testing.T) {
 			assert.Equal(t, mockNextIonBinary, bufferedResult.GetCurrentData())
 			assert.Equal(t, processingTime, *bufferedResult.GetTimingInformation().GetProcessingTimeMilliseconds())
 			assert.Equal(t, readIOs, *bufferedResult.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, writeIOs, *bufferedResult.GetConsumedIOs().getWriteIOs())
+			assert.Equal(t, writeIOs, *bufferedResult.GetConsumedIOs().GetWriteIOs())
 		})
 
 		t.Run("error", func(t *testing.T) {

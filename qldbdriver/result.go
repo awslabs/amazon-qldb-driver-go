@@ -95,17 +95,18 @@ func (result *result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult
 
 // GetConsumedIOs returns the statement statistics for the current number of read IO requests that were consumed. The statistics are stateful.
 func (result *result) GetConsumedIOs() *IOUsage {
+	readIOs := *result.ioUsage.readIOs
+	writeIOs := *result.ioUsage.writeIOs
 	return &IOUsage{
-		readIOs:  result.ioUsage.readIOs,
-		writeIOs: result.ioUsage.readIOs,
+		readIOs:  &readIOs,
+		writeIOs: &writeIOs,
 	}
 }
 
 // GetTimingInformation returns the statement statistics for the current server-side processing time. The statistics are stateful.
 func (result *result) GetTimingInformation() *TimingInformation {
-	return &TimingInformation{
-		processingTimeMilliseconds: result.timingInfo.processingTimeMilliseconds,
-	}
+	processingTime := *result.timingInfo.processingTimeMilliseconds
+	return &TimingInformation{&processingTime}
 }
 
 // GetCurrentData returns the current row of data in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
@@ -174,8 +175,8 @@ type IOUsage struct {
 	writeIOs *int64
 }
 
-// NewIOUsage creates a new instance of IOUsage.
-func NewIOUsage(readIOs int64, writeIOs int64) *IOUsage {
+// newIOUsage creates a new instance of IOUsage.
+func newIOUsage(readIOs int64, writeIOs int64) *IOUsage {
 	return &IOUsage{&readIOs, &writeIOs}
 }
 
@@ -184,8 +185,8 @@ func (ioUsage *IOUsage) GetReadIOs() *int64 {
 	return ioUsage.readIOs
 }
 
-// getWriteIOs returns the number of write IO requests that were consumed for a statement execution.
-func (ioUsage *IOUsage) getWriteIOs() *int64 {
+// GetWriteIOs returns the number of write IO requests that were consumed for a statement execution.
+func (ioUsage *IOUsage) GetWriteIOs() *int64 {
 	return ioUsage.writeIOs
 }
 
@@ -194,8 +195,8 @@ type TimingInformation struct {
 	processingTimeMilliseconds *int64
 }
 
-// NewTimingInformation creates a new instance of TimingInformation.
-func NewTimingInformation(processingTimeMilliseconds int64) *TimingInformation {
+// newTimingInformation creates a new instance of TimingInformation.
+func newTimingInformation(processingTimeMilliseconds int64) *TimingInformation {
 	return &TimingInformation{&processingTimeMilliseconds}
 }
 
