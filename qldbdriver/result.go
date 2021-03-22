@@ -20,7 +20,15 @@ import (
 )
 
 // Result is a cursor over a result set from a QLDB statement.
-type Result struct {
+type Result interface {
+	Next(txn Transaction) bool
+	GetCurrentData() []byte
+	GetConsumedIOs() *IOUsage
+	GetTimingInformation() *TimingInformation
+	Err() error
+}
+
+type result struct {
 	ctx          context.Context
 	communicator qldbService
 	txnID        *string
@@ -29,7 +37,8 @@ type Result struct {
 	index        int
 	logger       *qldbLogger
 	ionBinary    []byte
-	metrics      *metrics
+	ioUsage      *IOUsage
+	timingInfo   *TimingInformation
 	err          error
 }
 
@@ -37,7 +46,7 @@ type Result struct {
 // Returns true if there was another row of data to advance. Returns false if there is no more data or if an error occurred.
 // After a successful call to Next, call GetCurrentData to retrieve the current row of data.
 // After an unsuccessful call to Next, check Err to see if Next returned false because an error happened or because there is no more data.
-func (result *Result) Next(txn Transaction) bool {
+func (result *result) Next(txn Transaction) bool {
 	result.ionBinary = nil
 	result.err = nil
 
@@ -59,11 +68,12 @@ func (result *Result) Next(txn Transaction) bool {
 	return true
 }
 
-func (result *Result) getNextPage() error {
+func (result *result) getNextPage() error {
 	nextPage, err := result.communicator.fetchPage(result.ctx, result.pageToken, result.txnID)
 	if err != nil {
 		return err
 	}
+
 	result.pageValues = nextPage.Page.Values
 	result.pageToken = nextPage.Page.NextPageToken
 	result.index = 0
@@ -71,59 +81,65 @@ func (result *Result) getNextPage() error {
 	return nil
 }
 
-func (result *Result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult) {
+func (result *result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult) {
 	if fetchPageResult.ConsumedIOs != nil {
-		*result.metrics.ioUsage.readIOs += *fetchPageResult.ConsumedIOs.ReadIOs
-		*result.metrics.ioUsage.writeIOs += *fetchPageResult.ConsumedIOs.WriteIOs
+		*result.ioUsage.readIOs += *fetchPageResult.ConsumedIOs.ReadIOs
+		*result.ioUsage.writeIOs += *fetchPageResult.ConsumedIOs.WriteIOs
 	}
 
 	if fetchPageResult.TimingInformation != nil {
-		*result.metrics.timingInformation.processingTimeMilliseconds += *fetchPageResult.TimingInformation.ProcessingTimeMilliseconds
+		*result.timingInfo.processingTimeMilliseconds += *fetchPageResult.TimingInformation.ProcessingTimeMilliseconds
 	}
 }
 
 // GetConsumedIOs returns the statement statistics for the current number of read IO requests that were consumed. The statistics are stateful.
-func (result *Result) GetConsumedIOs() *IOUsage {
-	readIOs := *result.metrics.ioUsage.readIOs
-	writeIOs := *result.metrics.ioUsage.writeIOs
-	return &IOUsage{
-		readIOs:  &readIOs,
-		writeIOs: &writeIOs,
+func (result *result) GetConsumedIOs() *IOUsage {
+	if result.ioUsage == nil {
+		return nil
 	}
+	return newIOUsage(*result.ioUsage.readIOs, *result.ioUsage.writeIOs)
 }
 
 // GetTimingInformation returns the statement statistics for the current server-side processing time. The statistics are stateful.
-func (result *Result) GetTimingInformation() *TimingInformation {
-	timingInformation := *result.metrics.timingInformation.processingTimeMilliseconds
-	return &TimingInformation{
-		processingTimeMilliseconds: &timingInformation,
+func (result *result) GetTimingInformation() *TimingInformation {
+	if result.timingInfo == nil {
+		return nil
 	}
+	return newTimingInformation(*result.timingInfo.processingTimeMilliseconds)
 }
 
 // GetCurrentData returns the current row of data in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
 // See https://github.com/amzn/ion-go for more information.
-func (result *Result) GetCurrentData() []byte {
+func (result *result) GetCurrentData() []byte {
 	return result.ionBinary
 }
 
 // Err returns an error if a previous call to Next has failed.
 // The returned error will be nil if the previous call to Next succeeded.
-func (result *Result) Err() error {
+func (result *result) Err() error {
 	return result.err
 }
 
 // BufferedResult is a cursor over a result set from a QLDB statement that is valid outside the context of a transaction.
-type BufferedResult struct {
-	values    [][]byte
-	index     int
-	ionBinary []byte
-	metrics   *metrics
+type BufferedResult interface {
+	Next() bool
+	GetCurrentData() []byte
+	GetConsumedIOs() *IOUsage
+	GetTimingInformation() *TimingInformation
+}
+
+type bufferedResult struct {
+	values     [][]byte
+	index      int
+	ionBinary  []byte
+	ioUsage    *IOUsage
+	timingInfo *TimingInformation
 }
 
 // Next advances to the next row of data in the current result set.
 // Returns true if there was another row of data to advance. Returns false if there is no more data.
 // After a successful call to Next, call GetCurrentData to retrieve the current row of data.
-func (result *BufferedResult) Next() bool {
+func (result *bufferedResult) Next() bool {
 	result.ionBinary = nil
 
 	if result.index >= len(result.values) {
@@ -137,24 +153,35 @@ func (result *BufferedResult) Next() bool {
 
 // GetCurrentData returns the current row of data in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
 // See https://github.com/amzn/ion-go for more information.
-func (result *BufferedResult) GetCurrentData() []byte {
+func (result *bufferedResult) GetCurrentData() []byte {
 	return result.ionBinary
 }
 
 // GetConsumedIOs returns the statement statistics for the total number of read IO requests that were consumed.
-func (result *BufferedResult) GetConsumedIOs() *IOUsage {
-	return result.metrics.ioUsage
+func (result *bufferedResult) GetConsumedIOs() *IOUsage {
+	if result.ioUsage == nil {
+		return nil
+	}
+	return newIOUsage(*result.ioUsage.readIOs, *result.ioUsage.writeIOs)
 }
 
 // GetTimingInformation returns the statement statistics for the total server-side processing time.
-func (result *BufferedResult) GetTimingInformation() *TimingInformation {
-	return result.metrics.timingInformation
+func (result *bufferedResult) GetTimingInformation() *TimingInformation {
+	if result.timingInfo == nil {
+		return nil
+	}
+	return newTimingInformation(*result.timingInfo.processingTimeMilliseconds)
 }
 
 // IOUsage contains metrics for the amount of IO requests that were consumed.
 type IOUsage struct {
 	readIOs  *int64
 	writeIOs *int64
+}
+
+// newIOUsage creates a new instance of IOUsage.
+func newIOUsage(readIOs int64, writeIOs int64) *IOUsage {
+	return &IOUsage{&readIOs, &writeIOs}
 }
 
 // GetReadIOs returns the number of read IO requests that were consumed for a statement execution.
@@ -172,13 +199,12 @@ type TimingInformation struct {
 	processingTimeMilliseconds *int64
 }
 
+// newTimingInformation creates a new instance of TimingInformation.
+func newTimingInformation(processingTimeMilliseconds int64) *TimingInformation {
+	return &TimingInformation{&processingTimeMilliseconds}
+}
+
 // GetProcessingTimeMilliseconds returns the server-side processing time in milliseconds for a statement execution.
 func (timingInfo *TimingInformation) GetProcessingTimeMilliseconds() *int64 {
 	return timingInfo.processingTimeMilliseconds
-}
-
-// metrics holds IOUsage and TimingInformation structs
-type metrics struct {
-	ioUsage           *IOUsage
-	timingInformation *TimingInformation
 }

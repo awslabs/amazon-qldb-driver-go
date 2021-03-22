@@ -67,6 +67,7 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	for _, fn := range fns {
 		fn(options)
 	}
+
 	if options.MaxConcurrentTransactions < 1 {
 		return nil, &qldbDriverError{"MaxConcurrentTransactions must be 1 or greater."}
 	}
@@ -171,6 +172,7 @@ func (driver *QLDBDriver) GetTableNames(ctx context.Context) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		tableNames := make([]string, 0)
 		for result.Next(txn) {
 			nameStruct := new(tableName)

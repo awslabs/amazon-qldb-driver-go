@@ -56,7 +56,7 @@ func createTestBase() *testBase {
 }
 
 func (testBase *testBase) createLedger(t *testing.T) {
-	testBase.logger.Log(fmt.Sprint("Creating ledger named ", *testBase.ledgerName, " ..."))
+	testBase.logger.Log(fmt.Sprint("Creating ledger named ", *testBase.ledgerName, " ..."), LogInfo)
 	deletionProtection := false
 	permissions := "ALLOW_ALL"
 	_, err := testBase.qldb.CreateLedger(&qldb.CreateLedgerInput{Name: testBase.ledgerName, DeletionProtection: &deletionProtection, PermissionsMode: &permissions})
@@ -65,17 +65,17 @@ func (testBase *testBase) createLedger(t *testing.T) {
 }
 
 func (testBase *testBase) deleteLedger(t *testing.T) {
-	testBase.logger.Log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName))
+	testBase.logger.Log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName), LogInfo)
 	deletionProtection := false
 	_, _ = testBase.qldb.UpdateLedger(&qldb.UpdateLedgerInput{DeletionProtection: &deletionProtection, Name: testBase.ledgerName})
 	_, err := testBase.qldb.DeleteLedger(&qldb.DeleteLedgerInput{Name: testBase.ledgerName})
 	if err != nil {
 		if _, ok := err.(*qldb.ResourceNotFoundException); ok {
-			testBase.logger.Log("Encountered resource not found")
+			testBase.logger.Log("Encountered resource not found", LogInfo)
 			return
 		}
-		testBase.logger.Log("Encountered error during deletion")
-		testBase.logger.Log(err.Error())
+		testBase.logger.Log("Encountered error during deletion", LogInfo)
+		testBase.logger.Log(err.Error(), LogInfo)
 		t.Errorf("Failing test due to deletion failure")
 		assert.NoError(t, err)
 		return
@@ -84,26 +84,26 @@ func (testBase *testBase) deleteLedger(t *testing.T) {
 }
 
 func (testBase *testBase) waitForActive() {
-	testBase.logger.Log("Waiting for ledger to become active...")
+	testBase.logger.Log("Waiting for ledger to become active...", LogInfo)
 	for {
 		output, _ := testBase.qldb.DescribeLedger(&qldb.DescribeLedgerInput{Name: testBase.ledgerName})
 		if *output.State == "ACTIVE" {
-			testBase.logger.Log("Success. Ledger is active and ready to use.")
+			testBase.logger.Log("Success. Ledger is active and ready to use.", LogInfo)
 			return
 		}
-		testBase.logger.Log("The ledger is still creating. Please wait...")
+		testBase.logger.Log("The ledger is still creating. Please wait...", LogInfo)
 		time.Sleep(5 * time.Second)
 	}
 }
 
 func (testBase *testBase) waitForDeletion() {
-	testBase.logger.Log("Waiting for ledger to be deleted...")
+	testBase.logger.Log("Waiting for ledger to be deleted...", LogInfo)
 	for {
 		_, err := testBase.qldb.DescribeLedger(&qldb.DescribeLedgerInput{Name: testBase.ledgerName})
-		testBase.logger.Log("The ledger is still deleting. Please wait...")
+		testBase.logger.Log("The ledger is still deleting. Please wait...", LogInfo)
 		if err != nil {
 			if _, ok := err.(*qldb.ResourceNotFoundException); ok {
-				testBase.logger.Log("The ledger is deleted")
+				testBase.logger.Log("The ledger is deleted", LogInfo)
 				return
 			}
 		}
