@@ -94,18 +94,18 @@ func (result *result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult
 
 // GetConsumedIOs returns the statement statistics for the current number of read IO requests that were consumed. The statistics are stateful.
 func (result *result) GetConsumedIOs() *IOUsage {
-	readIOs := *result.ioUsage.readIOs
-	writeIOs := *result.ioUsage.writeIOs
-	return &IOUsage{
-		readIOs:  &readIOs,
-		writeIOs: &writeIOs,
+	if result.ioUsage == nil {
+		return nil
 	}
+	return newIOUsage(*result.ioUsage.readIOs, *result.ioUsage.writeIOs)
 }
 
 // GetTimingInformation returns the statement statistics for the current server-side processing time. The statistics are stateful.
 func (result *result) GetTimingInformation() *TimingInformation {
-	processingTime := *result.timingInfo.processingTimeMilliseconds
-	return &TimingInformation{&processingTime}
+	if result.timingInfo == nil {
+		return nil
+	}
+	return newTimingInformation(*result.timingInfo.processingTimeMilliseconds)
 }
 
 // GetCurrentData returns the current row of data in Ion format. Use ion.Unmarshal or other Ion library methods to handle parsing.
@@ -159,12 +159,18 @@ func (result *bufferedResult) GetCurrentData() []byte {
 
 // GetConsumedIOs returns the statement statistics for the total number of read IO requests that were consumed.
 func (result *bufferedResult) GetConsumedIOs() *IOUsage {
-	return result.ioUsage
+	if result.ioUsage == nil {
+		return nil
+	}
+	return newIOUsage(*result.ioUsage.readIOs, *result.ioUsage.writeIOs)
 }
 
 // GetTimingInformation returns the statement statistics for the total server-side processing time.
 func (result *bufferedResult) GetTimingInformation() *TimingInformation {
-	return result.timingInfo
+	if result.timingInfo == nil {
+		return nil
+	}
+	return newTimingInformation(*result.timingInfo.processingTimeMilliseconds)
 }
 
 // IOUsage contains metrics for the amount of IO requests that were consumed.
@@ -183,8 +189,8 @@ func (ioUsage *IOUsage) GetReadIOs() *int64 {
 	return ioUsage.readIOs
 }
 
-// GetWriteIOs returns the number of write IO requests that were consumed for a statement execution.
-func (ioUsage *IOUsage) GetWriteIOs() *int64 {
+// getWriteIOs returns the number of write IO requests that were consumed for a statement execution.
+func (ioUsage *IOUsage) getWriteIOs() *int64 {
 	return ioUsage.writeIOs
 }
 

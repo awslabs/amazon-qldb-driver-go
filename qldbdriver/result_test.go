@@ -108,13 +108,13 @@ func TestResult(t *testing.T) {
 				// Default page
 				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Equal(t, int64(0), *res.ioUsage.GetReadIOs())
-				assert.Equal(t, int64(0), *res.ioUsage.GetWriteIOs())
+				assert.Equal(t, int64(0), *res.ioUsage.getWriteIOs())
 				assert.Equal(t, int64(0), *res.timingInfo.GetProcessingTimeMilliseconds())
 
 				// Fetched page
 				assert.True(t, res.Next(&transactionExecutor{nil, nil}))
 				assert.Equal(t, readIOs, *res.ioUsage.GetReadIOs())
-				assert.Equal(t, writeIOs, *res.ioUsage.GetWriteIOs())
+				assert.Equal(t, writeIOs, *res.ioUsage.getWriteIOs())
 				assert.Equal(t, processingTimeMilliseconds, *res.timingInfo.GetProcessingTimeMilliseconds())
 			})
 
@@ -144,7 +144,7 @@ func TestResult(t *testing.T) {
 			res.updateMetrics(&fetchPageResult)
 
 			assert.Equal(t, int64(0), *res.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, int64(0), *res.GetConsumedIOs().GetWriteIOs())
+			assert.Equal(t, int64(0), *res.GetConsumedIOs().getWriteIOs())
 			assert.Equal(t, int64(0), *res.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
@@ -153,7 +153,7 @@ func TestResult(t *testing.T) {
 			result.updateMetrics(&fetchPageResultWithStats)
 
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, writeIOs, *result.GetConsumedIOs().GetWriteIOs())
+			assert.Equal(t, writeIOs, *result.GetConsumedIOs().getWriteIOs())
 			assert.Equal(t, processingTimeMilliseconds, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
@@ -162,7 +162,7 @@ func TestResult(t *testing.T) {
 			result.updateMetrics(&fetchPageResult)
 
 			assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, writeIOs, *result.GetConsumedIOs().GetWriteIOs())
+			assert.Equal(t, writeIOs, *result.GetConsumedIOs().getWriteIOs())
 			assert.Equal(t, processingTimeMilliseconds, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 
@@ -170,7 +170,7 @@ func TestResult(t *testing.T) {
 			result := result{ioUsage: newIOUsage(readIOs, writeIOs), timingInfo: newTimingInformation(processingTimeMilliseconds)}
 
 			readIOsBeforeUpdate := result.GetConsumedIOs().GetReadIOs()
-			writeIOsBeforeUpdate := result.GetConsumedIOs().GetWriteIOs()
+			writeIOsBeforeUpdate := result.GetConsumedIOs().getWriteIOs()
 			processingTimeMillisecondsBeforeUpdate := result.GetTimingInformation().GetProcessingTimeMilliseconds()
 
 			result.updateMetrics(&fetchPageResultWithStats)
@@ -180,7 +180,7 @@ func TestResult(t *testing.T) {
 			assert.Equal(t, int64(3), *processingTimeMillisecondsBeforeUpdate)
 
 			assert.Equal(t, int64(2), *result.GetConsumedIOs().GetReadIOs())
-			assert.Equal(t, int64(4), *result.GetConsumedIOs().GetWriteIOs())
+			assert.Equal(t, int64(4), *result.GetConsumedIOs().getWriteIOs())
 			assert.Equal(t, int64(6), *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		})
 	})
@@ -219,7 +219,7 @@ func TestBufferedResult(t *testing.T) {
 
 		assert.Equal(t, processingTimeMilliseconds, *result.GetTimingInformation().GetProcessingTimeMilliseconds())
 		assert.Equal(t, readIOs, *result.GetConsumedIOs().GetReadIOs())
-		assert.Equal(t, writeIOs, *result.GetConsumedIOs().GetWriteIOs())
+		assert.Equal(t, writeIOs, *result.GetConsumedIOs().getWriteIOs())
 	})
 }
 
