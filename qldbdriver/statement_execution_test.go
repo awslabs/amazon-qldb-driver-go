@@ -517,11 +517,12 @@ func TestStatementExecutionIntegration(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
+
 				return txn.BufferResult(result)
 			})
 			require.NoError(t, err)
 
-			bufferedResult := result.(*BufferedResult)
+			bufferedResult := result.(BufferedResult)
 
 			// IOUsage test
 			ioUsage := bufferedResult.GetConsumedIOs()
