@@ -489,10 +489,14 @@ func TestSessionExecute(t *testing.T) {
 
 	t.Run("wrappedAWSErrorHandling", func(t *testing.T) {
 		mockSessionService := new(mockSessionService)
+		mockSessionService.On("abortTransaction", mock.Anything).Return(&mockAbortTransactionResult, errMock)
+
 		session := session{mockSessionService, mockLogger}
 
-		err := session.wrapError(context.Background(), fmt.Errorf("Wrapped error: %w", testOCC), mockTransactionID)
+		err := session.wrapError(context.Background(), fmt.Errorf("ordinary error"), mockTransactionID)
+		assert.Equal(t, "", err.message)
 
+		err = session.wrapError(context.Background(), fmt.Errorf("wrapped error: %w", testOCC), mockTransactionID)
 		assert.Equal(t, testOCC, err.err)
 		assert.True(t, err.canRetry)
 	})
