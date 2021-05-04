@@ -69,6 +69,12 @@ To only run the integration tests:
 go test -run Integration
 ```
 
+## Documentation 
+
+The Amazon QLDB Go Driver adheres to GoDoc standards and the documentation can be found [here](https://pkg.go.dev/github.com/awslabs/amazon-qldb-driver-go/qldbdriver?tab=doc)
+
+If you wish to use GoDoc locally, please refer the [GoDoc documetation](https://godoc.org/golang.org/x/tools/cmd/godoc)
+
 ## Getting Help
 
 Please use these community resources for getting help.
@@ -82,11 +88,6 @@ If you encounter a bug with the Amazon QLDB Go Driver, we would like to hear abo
 
 The GitHub issues are intended for bug reports and feature requests. For help and questions with using AWS SDK for GO please make use of the resources listed in the [Getting Help](https://github.com/awslabs/amazon-qldb-driver-go#getting-help) section. Keeping the list of open issues lean will help us respond in a timely manner.
 
-## Documentation 
-
-The Amazon QLDB Go Driver adheres to GoDoc standards and the documentation can be found [here](https://pkg.go.dev/github.com/awslabs/amazon-qldb-driver-go/qldbdriver?tab=doc)
-
-If you wish to use GoDoc locally, please refer the [GoDoc documetation](https://godoc.org/golang.org/x/tools/cmd/godoc)
 ## License
 
 This library is licensed under the Apache 2.0 License.
