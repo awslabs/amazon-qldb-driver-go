@@ -71,9 +71,10 @@ go test -run Integration
 
 ### Documentation 
 
-The Amazon QLDB Go Driver adheres to GoDoc standards and the documentation can be found [here](https://pkg.go.dev/github.com/awslabs/amazon-qldb-driver-go/qldbdriver?tab=doc)
+The Amazon QLDB Go Driver adheres to GoDoc standards and the documentation can be found [here](https://pkg.go.dev/github.com/awslabs/amazon-qldb-driver-go/qldbdriver?tab=doc).
 
-If you wish to use GoDoc locally, please refer the [GoDoc documetation](https://godoc.org/golang.org/x/tools/cmd/godoc)
+You can generate the docstring HTML locally by running the following in the root directory of this repository:
+```godoc -http=:6060```
 
 ## Getting Help
 
