@@ -15,6 +15,7 @@ package qldbdriver
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -475,6 +476,28 @@ func TestSessionExecute(t *testing.T) {
 			_, err := txn.Execute("SELECT v FROM table")
 			if err != nil {
 				return nil, err
+			}
+			return 3, nil
+		})
+
+		assert.Nil(t, result)
+		assert.Equal(t, testOCC, err.err)
+		assert.False(t, err.isISE)
+		assert.True(t, err.canRetry)
+		assert.True(t, err.abortSuccess)
+	})
+
+	t.Run("wrappedAWSErrorHandling", func(t *testing.T) {
+		mockSessionService := new(mockSessionService)
+		mockSessionService.On("startTransaction", mock.Anything).Return(&mockStartTransactionResult, nil)
+		mockSessionService.On("executeStatement", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(&mockExecuteResult, testOCC)
+		session := session{mockSessionService, mockLogger}
+
+		result, err := session.execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			_, err := txn.Execute("SELECT v FROM table")
+			if err != nil {
+				return nil, fmt.Errorf("Wrapped error: %w", err)
 			}
 			return 3, nil
 		})
