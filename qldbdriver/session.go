@@ -15,6 +15,7 @@ package qldbdriver
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"regexp"
 
@@ -54,7 +55,8 @@ func (session *session) execute(ctx context.Context, fn func(txn Transaction) (i
 }
 
 func (session *session) wrapError(ctx context.Context, err error, transID string) *txnError {
-	if awsErr, ok := err.(awserr.RequestFailure); ok {
+	var awsErr awserr.RequestFailure
+	if errors.As(err, &awsErr) {
 		switch awsErr.Code() {
 		case qldbsession.ErrCodeInvalidSessionException:
 			match := regex.MatchString(awsErr.Message())
