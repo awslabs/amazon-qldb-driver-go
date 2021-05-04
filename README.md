@@ -69,7 +69,7 @@ To only run the integration tests:
 go test -run Integration
 ```
 
-## Documentation 
+### Documentation 
 
 The Amazon QLDB Go Driver adheres to GoDoc standards and the documentation can be found [here](https://pkg.go.dev/github.com/awslabs/amazon-qldb-driver-go/qldbdriver?tab=doc)
 
