@@ -86,7 +86,7 @@ Please use these community resources for getting help.
 
 If you encounter a bug with the Amazon QLDB Go Driver, we would like to hear about it. Please search the [existing issues](https://github.com/awslabs/amazon-qldb-driver-go/issues) and see if others are also experiencing the issue before opening a new issue. When opening a new issue, we will need the version of Amazon QLDB Go Driver, Go language version, and OS you’re using. Please also include reproduction case for the issue when appropriate.
 
-The GitHub issues are intended for bug reports and feature requests. For help and questions with using AWS SDK for GO please make use of the resources listed in the [Getting Help](https://github.com/awslabs/amazon-qldb-driver-go#getting-help) section. Keeping the list of open issues lean will help us respond in a timely manner.
+The GitHub issues are intended for bug reports and feature requests. For help and questions with using AWS QLDB GO Driver please make use of the resources listed in the [Getting Help](https://github.com/awslabs/amazon-qldb-driver-go#getting-help) section. Keeping the list of open issues lean will help us respond in a timely manner.
 
 ## License
 
