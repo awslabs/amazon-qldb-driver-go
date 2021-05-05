@@ -24,6 +24,8 @@ Please see the link below for more detail to install Golang:
 
 ## Getting Started
 
+Please see the [Quickstart guide for the Amazon QLDB Driver for Go](https://docs.aws.amazon.com/qldb/latest/developerguide/driver-quickstart-golang.html).
+
 First, ensure your project is using [Go modules](https://blog.golang.org/using-go-modules) to install dependencies in your project.
 
 In your project directory, install the driver using go get:
