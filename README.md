@@ -20,7 +20,7 @@ QldbDriver 1.x requires Golang 1.14 or later.
 
 Please see the link below for more detail to install Golang:
 
-  [Golang Download](https://golang.org/dl/)
+* [Golang Download](https://golang.org/dl/)
 
 ## Getting Started
 
