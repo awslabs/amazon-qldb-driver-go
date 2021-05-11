@@ -42,6 +42,11 @@ For more instructions on working with the golang driver, please refer to the ins
 4. QLDB Golang driver accepts and returns [Amazon ION](http://amzn.github.io/ion-docs/) Documents. Amazon Ion is a richly-typed, self-describing, hierarchical data serialization format offering interchangeable binary and text representations. For more information read the [ION docs](https://readthedocs.org/projects/ion-python/).
 5. Amazon QLDB supports a subset of the [PartiQL](https://partiql.org/) query language. PartiQL provides SQL-compatible query access across multiple data stores containing structured data, semistructured data, and nested data. For more information read the [docs](https://docs.aws.amazon.com/qldb/latest/developerguide/ql-reference.html).
 6. Refer the section [Common Errors while using the Amazon QLDB Drivers](https://docs.aws.amazon.com/qldb/latest/developerguide/driver-errors.html) which describes runtime errors that can be thrown by the Amazon QLDB Driver when calling the qldb-session APIs.
+7. **Driver Recommendations** &mdash; Check them out in the [Best Practices](https://docs.aws.amazon.com/qldb/latest/developerguide/driver.best-practices.html) 
+in the QLDB documentation.
+8. **Exception handling when using QLDB Drivers** &mdash; Refer to the section [Common Errors while using the Amazon 
+QLDB Drivers](https://docs.aws.amazon.com/qldb/latest/developerguide/driver-errors.html) 
+which describes runtime exceptions that can be thrown by the Amazon QLDB Driver when calling the qldb-session APIs.
 
 ## Development
 
