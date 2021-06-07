@@ -59,6 +59,13 @@ type semaphore struct {
 // Note that qldbSession.Client.Config.MaxRetries will be set to 0. This property should not be modified.
 // DriverOptions.RetryLimit is unrelated to this property, but should be used if it is desired to modify the amount of retires for statement executions.
 func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) (*QLDBDriver, error) {
+	if qldbSession == nil {
+		return nil, &qldbDriverError{"Provided QLDBSession is nil."}
+	}
+	if qldbSession.Client == nil {
+		return nil, &qldbDriverError{"Provided QLDBSession has nil client."}
+	}
+
 	retryPolicy := RetryPolicy{
 		MaxRetryLimit: 4,
 		Backoff:       ExponentialBackoffStrategy{SleepBase: time.Duration(10) * time.Millisecond, SleepCap: time.Duration(5000) * time.Millisecond}}
@@ -73,14 +80,19 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	}
 
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
+
+	client := *qldbSession.Client
 	qldbSDKRetries := 0
-	qldbSession.Client.Config.MaxRetries = &qldbSDKRetries
+	client.Config.MaxRetries = &qldbSDKRetries
+
+	driverQldbSession := *qldbSession
+	driverQldbSession.Client = &client
 
 	semaphore := makeSemaphore(options.MaxConcurrentTransactions)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)
 	isClosed := false
 
-	return &QLDBDriver{ledgerName, qldbSession, options.MaxConcurrentTransactions, logger, isClosed,
+	return &QLDBDriver{ledgerName, &driverQldbSession, options.MaxConcurrentTransactions, logger, isClosed,
 		semaphore, sessionPool, options.RetryPolicy, sync.Mutex{}}, nil
 }
 
