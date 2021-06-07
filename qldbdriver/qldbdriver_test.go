@@ -112,18 +112,24 @@ func TestNew(t *testing.T) {
 			})
 		require.NoError(t, err)
 
+		driverQldbSession, ok := createdDriver.qldbSession.(*qldbsession.QLDBSession)
+		require.True(t, ok)
+
 		qldbSession.Client.Retryer = client.DefaultRetryer{}
 		qldbSession.Client.Config = aws.Config{}
 		qldbSession.Client.ClientInfo = metadata.ClientInfo{}
 		qldbSession.Client.Handlers = request.Handlers{}
 
-		driverQldbSession, ok := createdDriver.qldbSession.(*qldbsession.QLDBSession)
-		require.True(t, ok)
-
 		assert.NotEqual(t, qldbSession.Client.Retryer, driverQldbSession.Client.Retryer)
 		assert.NotEqual(t, qldbSession.Client.Config, driverQldbSession.Client.Config)
 		assert.NotEqual(t, qldbSession.Client.ClientInfo, driverQldbSession.Client.ClientInfo)
 		assert.NotEqual(t, qldbSession.Client.Handlers, driverQldbSession.Client.Handlers)
+
+		qldbSession.Client = nil
+		assert.NotNil(t, driverQldbSession.Client)
+
+		qldbSession = nil
+		assert.NotNil(t, driverQldbSession)
 	})
 }
 
