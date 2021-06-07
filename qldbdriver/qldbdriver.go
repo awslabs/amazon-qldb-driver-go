@@ -62,9 +62,6 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	if qldbSession == nil {
 		return nil, &qldbDriverError{"Provided QLDBSession is nil."}
 	}
-	if qldbSession.Client == nil {
-		return nil, &qldbDriverError{"Provided QLDBSession has nil client."}
-	}
 
 	retryPolicy := RetryPolicy{
 		MaxRetryLimit: 4,
@@ -81,12 +78,15 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
 
-	client := *qldbSession.Client
-	qldbSDKRetries := 0
-	client.Config.MaxRetries = &qldbSDKRetries
-
 	driverQldbSession := *qldbSession
-	driverQldbSession.Client = &client
+	if qldbSession.Client != nil {
+		client := *qldbSession.Client
+
+		qldbSDKRetries := 0
+		client.Config.MaxRetries = &qldbSDKRetries
+
+		driverQldbSession.Client = &client
+	}
 
 	semaphore := makeSemaphore(options.MaxConcurrentTransactions)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)

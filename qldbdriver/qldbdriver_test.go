@@ -53,17 +53,6 @@ func TestNew(t *testing.T) {
 				options.LoggerVerbosity = LogOff
 			})
 		assert.Error(t, err)
-
-		awsSession := sdksession.Must(sdksession.NewSession())
-		qldbSession := qldbsession.New(awsSession)
-		qldbSession.Client = nil
-
-		_, err = New(mockLedgerName,
-			qldbSession,
-			func(options *DriverOptions) {
-				options.LoggerVerbosity = LogOff
-			})
-		assert.Error(t, err)
 	})
 
 	t.Run("New default success", func(t *testing.T) {
