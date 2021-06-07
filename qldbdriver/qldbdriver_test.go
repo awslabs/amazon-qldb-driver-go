@@ -116,13 +116,15 @@ func TestNew(t *testing.T) {
 		require.True(t, ok)
 
 		qldbSession.Client.Retryer = client.DefaultRetryer{}
-		qldbSession.Client.Config = aws.Config{}
-		qldbSession.Client.ClientInfo = metadata.ClientInfo{}
-		qldbSession.Client.Handlers = request.Handlers{}
-
 		assert.NotEqual(t, qldbSession.Client.Retryer, driverQldbSession.Client.Retryer)
+
+		qldbSession.Client.Config = aws.Config{}
 		assert.NotEqual(t, qldbSession.Client.Config, driverQldbSession.Client.Config)
+
+		qldbSession.Client.ClientInfo = metadata.ClientInfo{}
 		assert.NotEqual(t, qldbSession.Client.ClientInfo, driverQldbSession.Client.ClientInfo)
+
+		qldbSession.Client.Handlers = request.Handlers{}
 		assert.NotEqual(t, qldbSession.Client.Handlers, driverQldbSession.Client.Handlers)
 
 		qldbSession.Client = nil
