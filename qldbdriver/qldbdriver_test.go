@@ -20,7 +20,11 @@ import (
 	"time"
 
 	"github.com/amzn/ion-go/ion"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/client"
+	"github.com/aws/aws-sdk-go/aws/client/metadata"
+	"github.com/aws/aws-sdk-go/aws/request"
 	sdksession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/qldbsession"
 	"github.com/stretchr/testify/assert"
@@ -38,6 +42,15 @@ func TestNew(t *testing.T) {
 			func(options *DriverOptions) {
 				options.LoggerVerbosity = LogOff
 				options.MaxConcurrentTransactions = 0
+			})
+		assert.Error(t, err)
+	})
+
+	t.Run("Invalid QLDBSession error", func(t *testing.T) {
+		_, err := New(mockLedgerName,
+			nil,
+			func(options *DriverOptions) {
+				options.LoggerVerbosity = LogOff
 			})
 		assert.Error(t, err)
 	})
@@ -60,8 +73,16 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, createdDriver.retryPolicy.MaxRetryLimit, defaultRetry)
 		assert.Equal(t, createdDriver.isClosed, false)
 		assert.Equal(t, cap(createdDriver.sessionPool), defaultMaxConcurrentTransactions)
-		assert.Equal(t, createdDriver.qldbSession, qldbSession)
-		assert.Equal(t, 0, *qldbSession.Client.Config.MaxRetries)
+
+		driverQldbSession, ok := createdDriver.qldbSession.(*qldbsession.QLDBSession)
+		require.True(t, ok)
+
+		assert.Equal(t, qldbSession.Client.Retryer, driverQldbSession.Client.Retryer)
+		assert.Equal(t, qldbSession.Client.ClientInfo, driverQldbSession.Client.ClientInfo)
+
+		*qldbSession.Client.Config.MaxRetries = 0
+		assert.Equal(t, qldbSession.Client.Config, driverQldbSession.Client.Config)
+		assert.Equal(t, 0, *driverQldbSession.Client.Config.MaxRetries)
 	})
 
 	t.Run("Retry limit overflow handled", func(t *testing.T) {
@@ -78,6 +99,39 @@ func TestNew(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, 65534, createdDriver.maxConcurrentTransactions)
+	})
+
+	t.Run("Protected against QLDBSession mutation", func(t *testing.T) {
+		awsSession := sdksession.Must(sdksession.NewSession())
+		qldbSession := qldbsession.New(awsSession)
+
+		createdDriver, err := New(mockLedgerName,
+			qldbSession,
+			func(options *DriverOptions) {
+				options.LoggerVerbosity = LogOff
+			})
+		require.NoError(t, err)
+
+		driverQldbSession, ok := createdDriver.qldbSession.(*qldbsession.QLDBSession)
+		require.True(t, ok)
+
+		qldbSession.Client.Retryer = client.DefaultRetryer{}
+		assert.NotEqual(t, qldbSession.Client.Retryer, driverQldbSession.Client.Retryer)
+
+		qldbSession.Client.Config = aws.Config{}
+		assert.NotEqual(t, qldbSession.Client.Config, driverQldbSession.Client.Config)
+
+		qldbSession.Client.ClientInfo = metadata.ClientInfo{}
+		assert.NotEqual(t, qldbSession.Client.ClientInfo, driverQldbSession.Client.ClientInfo)
+
+		qldbSession.Client.Handlers = request.Handlers{}
+		assert.NotEqual(t, qldbSession.Client.Handlers, driverQldbSession.Client.Handlers)
+
+		qldbSession.Client = nil
+		assert.NotNil(t, driverQldbSession.Client)
+
+		qldbSession = nil
+		assert.NotNil(t, driverQldbSession)
 	})
 }
 
