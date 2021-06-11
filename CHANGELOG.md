@@ -1,4 +1,12 @@
-# 1.1.0
+# 1.1.1
+
+## :bug: Fixed
+
+* Bumped Ion Go to `v1.1.2` and Ion Hash Go to `v1.1.1` to fix a bug where inserting certain timestamps would throw an error.
+* Prevent mutation of `*qldbsession.QLDBSession` after passing into QLDBDriver constructor.
+* Allow users to wrap `awserr.RequestFailure` within a transaction lambda and support retryable errors.
+
+# 1.1.0 (2021-02-25)
 
 ## :tada: Enhancements
 
