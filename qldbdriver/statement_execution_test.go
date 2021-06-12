@@ -825,9 +825,9 @@ func TestStatementExecutionIntegration(t *testing.T) {
 				case *ion.Timestamp:
 					_, ok := parameterValue.(time.Time)
 					if ok && !reflect.DeepEqual(parameterValue, (*actualVal).GetDateTime()) {
-							t.Errorf("expected %v, got %v", parameterValue, (*actualVal).GetDateTime())
+						t.Errorf("expected %v, got %v", parameterValue, (*actualVal).GetDateTime())
 					} else if !ok && !reflect.DeepEqual(parameterValue, *actualVal) {
-							t.Errorf("expected %v, got %v", parameterValue, *actualVal)
+						t.Errorf("expected %v, got %v", parameterValue, *actualVal)
 					}
 				default:
 					t.Errorf("Could not find type")
