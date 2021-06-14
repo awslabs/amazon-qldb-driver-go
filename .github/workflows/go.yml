@@ -2,9 +2,9 @@ name: Go Build
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, v1.x ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, v1.x ]
 
 jobs:
   build:
