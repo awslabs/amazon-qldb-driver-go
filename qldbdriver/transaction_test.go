@@ -321,7 +321,7 @@ func TestTransactionExecutor(t *testing.T) {
 
 	t.Run("Transaction ID", func(t *testing.T) {
 		id := testExecutor.ID()
-		assert.NotEmpty(t, id)
+		assert.Equal(t, mockID, id)
 	})
 }
 
