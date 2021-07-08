@@ -942,6 +942,20 @@ func TestStatementExecutionIntegration(t *testing.T) {
 		assert.True(t, ok)
 	})
 
+	t.Run("Return Transaction ID after executing statement", func(t *testing.T) {
+		query := fmt.Sprintf("SELECT * FROM %s", testTableName)
+		txnID, err := qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			_, err := txn.Execute(query)
+			if err != nil {
+				return nil, err
+			}
+
+			return txn.ID(), nil
+		})
+		require.NoError(t, err)
+		assert.NotEmpty(t, txnID)
+	})
+
 	// teardown
 	qldbDriver.Shutdown(context.Background())
 	testBase.deleteLedger(t)

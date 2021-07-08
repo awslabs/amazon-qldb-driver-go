@@ -318,6 +318,11 @@ func TestTransactionExecutor(t *testing.T) {
 		abort := testExecutor.Abort()
 		assert.Error(t, abort)
 	})
+
+	t.Run("Transaction ID", func(t *testing.T) {
+		id := testExecutor.ID()
+		assert.Equal(t, mockID, id)
+	})
 }
 
 type mockTransactionService struct {
