@@ -320,7 +320,7 @@ func TestTransactionExecutor(t *testing.T) {
 	})
 
 	t.Run("Transaction ID", func(t *testing.T) {
-		id := testExecutor.Id()
+		id := testExecutor.ID()
 		assert.NotEmpty(t, id)
 	})
 }

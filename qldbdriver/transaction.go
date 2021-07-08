@@ -31,7 +31,7 @@ type Transaction interface {
 	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
 	// Return the transaction ID.
-	Id() string
+	ID() string
 }
 
 type transaction struct {
@@ -132,6 +132,6 @@ func (executor *transactionExecutor) Abort() error {
 }
 
 // Return the transaction ID.
-func (executor *transactionExecutor) Id() string {
+func (executor *transactionExecutor) ID() string {
 	return *executor.txn.id
 }
