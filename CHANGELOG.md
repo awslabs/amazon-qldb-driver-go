@@ -1,4 +1,18 @@
-# 1.1.0
+# 2.0.0
+
+* Bumped Ion Go to `v1.1.3` allow support for unmarshalling Ion timestamps to Go time objects.
+* Logging interface now provides the LogLevel as a parameter.
+* Expose transaction ID in Transaction interface.
+
+# 1.1.1 (2021-06-16)
+
+## :bug: Fixed
+
+* Bumped Ion Go to `v1.1.2` and Ion Hash Go to `v1.1.1` to fix a bug where inserting certain timestamps would throw an error.
+* Prevent mutation of `*qldbsession.QLDBSession` after passing into QLDBDriver constructor.
+* Allow users to wrap `awserr.RequestFailure` within a transaction lambda and support retryable errors.
+
+# 1.1.0 (2021-02-25)
 
 ## :tada: Enhancements
 

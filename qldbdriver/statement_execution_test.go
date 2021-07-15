@@ -634,12 +634,45 @@ func TestStatementExecutionIntegration(t *testing.T) {
 					if !reflect.DeepEqual(parameterValue, *actualVal) {
 						t.Errorf("expected %v, got %v", parameterValue, reflect.ValueOf(*actualVal))
 					}
+				case *ion.Timestamp:
+					_, ok := parameterValue.(time.Time)
+					if ok && !reflect.DeepEqual(parameterValue, (*actualVal).GetDateTime()) {
+						t.Errorf("expected %v, got %v", parameterValue, (*actualVal).GetDateTime())
+					} else if !ok && !reflect.DeepEqual(parameterValue, *actualVal) {
+						t.Errorf("expected %v, got %v", parameterValue, *actualVal)
+					}
 				default:
 					t.Errorf("Could not find type")
 				}
 
 			})
 		}
+
+		// Time.time
+		type TestTableTime struct {
+			Name time.Time `ion:"Name"`
+		}
+		timeParam := time.Now().UTC()
+		testInsertCommon("Time.time",
+			fmt.Sprintf("INSERT INTO %s ?", testTableName),
+			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
+			timeParam,
+			new(ion.Timestamp),
+			TestTableTime{timeParam},
+		)
+
+		// ion.Timestamp
+		type TestTableTimeStamp struct {
+			Name ion.Timestamp `ion:"Name"`
+		}
+		timestampParam := ion.NewTimestampWithFractionalSeconds(time.Now().UTC(), ion.TimestampPrecisionNanosecond, ion.TimezoneUTC, 9)
+		testInsertCommon("ion.Timestamp",
+			fmt.Sprintf("INSERT INTO %s ?", testTableName),
+			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
+			timestampParam,
+			new(ion.Timestamp),
+			TestTableTimeStamp{timestampParam},
+		)
 
 		// boolean
 		type TestTableBoolean struct {
@@ -790,11 +823,38 @@ func TestStatementExecutionIntegration(t *testing.T) {
 					if !reflect.DeepEqual(parameterValue, *actualVal) {
 						t.Errorf("expected %v, got %v", parameterValue, reflect.ValueOf(*actualVal))
 					}
+				case *ion.Timestamp:
+					_, ok := parameterValue.(time.Time)
+					if ok && !reflect.DeepEqual(parameterValue, (*actualVal).GetDateTime()) {
+						t.Errorf("expected %v, got %v", parameterValue, (*actualVal).GetDateTime())
+					} else if !ok && !reflect.DeepEqual(parameterValue, *actualVal) {
+						t.Errorf("expected %v, got %v", parameterValue, *actualVal)
+					}
 				default:
 					t.Errorf("Could not find type")
 				}
 			})
 		}
+
+		// Time.time
+		timeParam := time.Now().UTC()
+		testUpdateCommon("Time.time",
+			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
+			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
+			timeParam,
+			new(ion.Timestamp),
+			timeParam,
+		)
+
+		// ion.Timestamp
+		timestampParam := ion.NewTimestampWithFractionalSeconds(time.Now().UTC(), ion.TimestampPrecisionNanosecond, ion.TimezoneUTC, 9)
+		testUpdateCommon("ion.Timestamp",
+			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
+			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
+			timestampParam,
+			new(ion.Timestamp),
+			timestampParam,
+		)
 
 		// boolean
 		boolParam := true
