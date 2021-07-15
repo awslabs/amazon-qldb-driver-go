@@ -1,3 +1,9 @@
+# 2.0.0
+
+* Bumped Ion Go to `v1.1.3` allow support for unmarshalling Ion timestamps to Go time objects.
+* Logging interface now provides the LogLevel as a parameter.
+* Expose transaction ID in Transaction interface.
+
 # 1.1.1
 
 ## :bug: Fixed
