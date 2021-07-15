@@ -4,7 +4,7 @@
 * Logging interface now provides the LogLevel as a parameter.
 * Expose transaction ID in Transaction interface.
 
-# 1.1.1
+# 1.1.1 (2021-06-16)
 
 ## :bug: Fixed
 
