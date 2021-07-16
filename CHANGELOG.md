@@ -1,6 +1,6 @@
 # 2.0.0
 
-## Enhancements
+## :tada: Enhancements
 
 * Bumped Ion Go dependency to `v1.1.3` allow support for unmarshalling Ion timestamps to Go time objects.
 
