@@ -8,29 +8,29 @@
 
 * The `Logger` interface's `Log` method now takes in a `LogLevel` to specify the logging verbosity. Any instances of `Logger.Log()` will need to be updated accordingly.
 
-ie.
-```go
-logger.Log("Log Message")
-```
+    ie.
+    ```go
+    logger.Log("Log Message")
+    ```
 
-should be updated to
+    should be updated to
 
-```go
-logger.Log("Log Message", qldbdriver.LogInfo)
-```
+    ```go
+    logger.Log("Log Message", qldbdriver.LogInfo)
+    ```
 
 * `Result` and `BufferedResult` have changed from struct types to interface types. As a consequence of this change, the `Transaction` interface's `Execute()` and `BufferResult()` methods respectively return `Result` and `BufferedResult` rather than `*Result` and `*BufferedResult`. Any logic dereferencing or casting to a `Result` or `BufferedResult` will need to be updated accordingly.
 
-ie.
-```go
-result.(*BufferedResult)
-```
+    ie.
+    ```go
+    result.(*BufferedResult)
+    ```
 
-should be updated to
+    should be updated to
 
-```go
-result.(BufferedResult)
-```
+    ```go
+    result.(BufferedResult)
+    ```
 
 * The `Transaction` interface has a new `ID()` method for exposing the transaction ID. Any implementations of this interface will need a new `ID() string` method defined.
 
