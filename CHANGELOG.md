@@ -1,8 +1,38 @@
 # 2.0.0
 
-* Bumped Ion Go to `v1.1.3` allow support for unmarshalling Ion timestamps to Go time objects.
-* Logging interface now provides the LogLevel as a parameter.
-* Expose transaction ID in Transaction interface.
+## :tada: Enhancements
+
+* Bumped Ion Go dependency to `v1.1.3` allow support for unmarshalling Ion timestamps to Go time objects.
+
+## :boom: Breaking changes
+
+* The `Logger` interface's `Log` method now takes in a `LogLevel` to specify the logging verbosity. Any instances of `Logger.Log()` will need to be updated accordingly.
+
+    ie.
+    ```go
+    logger.Log("Log Message")
+    ```
+
+    should be updated to
+
+    ```go
+    logger.Log("Log Message", qldbdriver.LogInfo)
+    ```
+
+* `Result` and `BufferedResult` have changed from struct types to interface types. As a consequence of this change, the `Transaction` interface's `Execute()` and `BufferResult()` methods respectively return `Result` and `BufferedResult` rather than `*Result` and `*BufferedResult`. Any logic dereferencing or casting to a `Result` or `BufferedResult` will need to be updated accordingly.
+
+    ie.
+    ```go
+    result.(*BufferedResult)
+    ```
+
+    should be updated to
+
+    ```go
+    result.(BufferedResult)
+    ```
+
+* The `Transaction` interface has a new `ID()` method for exposing the transaction ID. Any implementations of this interface will need a new `ID() string` method defined.
 
 # 1.1.1 (2021-06-16)
 
