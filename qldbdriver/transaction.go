@@ -30,7 +30,7 @@ type Transaction interface {
 	BufferResult(res Result) (BufferedResult, error)
 	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
-	// Return the transaction ID.
+	// Return the automatically generated transaction ID.
 	ID() string
 }
 
@@ -131,7 +131,7 @@ func (executor *transactionExecutor) Abort() error {
 	return errors.New("transaction aborted")
 }
 
-// Return the transaction ID.
+// Return the automatically generated transaction ID.
 func (executor *transactionExecutor) ID() string {
 	return *executor.txn.id
 }
