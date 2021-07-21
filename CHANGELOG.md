@@ -1,4 +1,6 @@
-# 2.0.2
+# 2.0.2 (2021-07-21)
+
+Releases v2.0.0 and v2.0.1 were skipped due to instability issues.
 
 ## :tada: Enhancements
 
