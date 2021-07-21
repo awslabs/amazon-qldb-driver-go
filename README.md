@@ -28,7 +28,7 @@ First, ensure your project is using [Go modules](https://blog.golang.org/using-g
 
 In your project directory, install the driver using go get:
 
-```go get github.com/awslabs/amazon-qldb-driver-go/qldbdriver```
+```go get github.com/awslabs/amazon-qldb-driver-go/qldbdriver/v2```
 
 For more instructions on working with the golang driver, please refer to the instructions below.
 
@@ -84,7 +84,7 @@ The GitHub issues are intended for bug reports and feature requests. For help an
 
 ## Documentation 
 
-The Amazon QLDB Go Driver adheres to GoDoc standards and the documentation can be found [here](https://pkg.go.dev/github.com/awslabs/amazon-qldb-driver-go/qldbdriver?tab=doc)
+The Amazon QLDB Go Driver adheres to GoDoc standards and the documentation can be found [here](https://pkg.go.dev/github.com/awslabs/amazon-qldb-driver-go/v2/qldbdriver?tab=doc)
 
 If you wish to use GoDoc locally, please refer the [GoDoc documetation](https://godoc.org/golang.org/x/tools/cmd/godoc)
 ## License
