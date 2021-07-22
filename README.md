@@ -16,7 +16,7 @@ See [Accessing Amazon QLDB](https://docs.aws.amazon.com/qldb/latest/developergui
 
 ### Required Golang versions
 
-QldbDriver 1.x requires Golang 1.14 or later.
+QldbDriver requires Golang 1.14 or later.
 
 Please see the link below for more detail to install Golang:
 
