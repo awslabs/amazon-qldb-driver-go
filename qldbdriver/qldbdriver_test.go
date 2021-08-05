@@ -15,18 +15,13 @@ package qldbdriver
 import (
 	"context"
 	"errors"
-	"net/http"
 	"testing"
 	"time"
 
 	"github.com/amzn/ion-go/ion"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/client/metadata"
-	"github.com/aws/aws-sdk-go/aws/request"
-	sdksession "github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,10 +29,11 @@ import (
 
 func TestNew(t *testing.T) {
 	t.Run("0 max transactions error", func(t *testing.T) {
-		awsSession := sdksession.Must(sdksession.NewSession())
-		qldbSession := qldbsession.New(awsSession)
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		require.NoError(t, err)
+		qldbSession := qldbsession.NewFromConfig(cfg)
 
-		_, err := New(mockLedgerName,
+		_, err = New(mockLedgerName,
 			qldbSession,
 			func(options *DriverOptions) {
 				options.LoggerVerbosity = LogOff
@@ -56,10 +52,9 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("New default success", func(t *testing.T) {
-		awsSession := sdksession.Must(sdksession.NewSession())
-		qldbSession := qldbsession.New(awsSession)
-		initialRetries := 4
-		qldbSession.Client.Config.MaxRetries = &initialRetries
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		require.NoError(t, err)
+		qldbSession := qldbsession.NewFromConfig(cfg)
 
 		createdDriver, err := New(mockLedgerName,
 			qldbSession,
@@ -74,22 +69,15 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, createdDriver.isClosed, false)
 		assert.Equal(t, cap(createdDriver.sessionPool), defaultMaxConcurrentTransactions)
 
-		driverQldbSession, ok := createdDriver.qldbSession.(*qldbsession.QLDBSession)
-		require.True(t, ok)
+		driverQldbSession := createdDriver.qldbSession
 
-		assert.Equal(t, qldbSession.Client.Retryer, driverQldbSession.Client.Retryer)
-		assert.Equal(t, qldbSession.Client.ClientInfo, driverQldbSession.Client.ClientInfo)
-
-		*qldbSession.Client.Config.MaxRetries = 0
-		assert.Equal(t, qldbSession.Client.Config, driverQldbSession.Client.Config)
-		assert.Equal(t, 0, *driverQldbSession.Client.Config.MaxRetries)
+		assert.Equal(t, qldbSession, driverQldbSession)
 	})
 
 	t.Run("Retry limit overflow handled", func(t *testing.T) {
-		awsSession := sdksession.Must(sdksession.NewSession())
-		qldbSession := qldbsession.New(awsSession)
-		initialRetries := 4
-		qldbSession.Client.Config.MaxRetries = &initialRetries
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		require.NoError(t, err)
+		qldbSession := qldbsession.NewFromConfig(cfg)
 
 		createdDriver, err := New(mockLedgerName,
 			qldbSession,
@@ -102,8 +90,9 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("Protected against QLDBSession mutation", func(t *testing.T) {
-		awsSession := sdksession.Must(sdksession.NewSession())
-		qldbSession := qldbsession.New(awsSession)
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		require.NoError(t, err)
+		qldbSession := qldbsession.NewFromConfig(cfg)
 
 		createdDriver, err := New(mockLedgerName,
 			qldbSession,
@@ -112,23 +101,7 @@ func TestNew(t *testing.T) {
 			})
 		require.NoError(t, err)
 
-		driverQldbSession, ok := createdDriver.qldbSession.(*qldbsession.QLDBSession)
-		require.True(t, ok)
-
-		qldbSession.Client.Retryer = client.DefaultRetryer{}
-		assert.NotEqual(t, qldbSession.Client.Retryer, driverQldbSession.Client.Retryer)
-
-		qldbSession.Client.Config = aws.Config{}
-		assert.NotEqual(t, qldbSession.Client.Config, driverQldbSession.Client.Config)
-
-		qldbSession.Client.ClientInfo = metadata.ClientInfo{}
-		assert.NotEqual(t, qldbSession.Client.ClientInfo, driverQldbSession.Client.ClientInfo)
-
-		qldbSession.Client.Handlers = request.Handlers{}
-		assert.NotEqual(t, qldbSession.Client.Handlers, driverQldbSession.Client.Handlers)
-
-		qldbSession.Client = nil
-		assert.NotNil(t, driverQldbSession.Client)
+		driverQldbSession := createdDriver.qldbSession
 
 		qldbSession = nil
 		assert.NotNil(t, driverQldbSession)
@@ -162,7 +135,7 @@ func TestExecute(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -185,7 +158,7 @@ func TestExecute(t *testing.T) {
 
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil)
 		testDriver.qldbSession = mockSession
 
 		executeResult, err := testDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
@@ -200,7 +173,7 @@ func TestExecute(t *testing.T) {
 
 	t.Run("error get session", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 		testDriver.sessionPool = make(chan *session, 10)
 
@@ -221,23 +194,23 @@ func TestExecute(t *testing.T) {
 			StartTransaction:  &mockStartTransactionWithID,
 		}
 
-		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSession := &types.StartSessionRequest{LedgerName: &mockLedgerName}
 		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
 
-		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransaction := &types.StartTransactionRequest{}
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
-		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		startTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		abortTransaction := &qldbsession.AbortTransactionRequest{}
+		abortTransaction := &types.AbortTransactionRequest{}
 		abortTransactionRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
-		abortTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		abortTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		var testOCCError = awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeOccConflictException, "OCC", nil), http.StatusBadRequest, "reqID")
+		testOCCError := &types.OccConflictException{Message: &ErrMessageOccConflictException}
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandForSession, testOCCError)
-		mockSession.On("SendCommandWithContext", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
+		mockSession.On("SendCommand", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
+		mockSession.On("SendCommand", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandForSession, testOCCError)
+		mockSession.On("SendCommand", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandForSession, nil)
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
@@ -250,17 +223,18 @@ func TestExecute(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		awsErr, ok := err.(awserr.Error)
-		assert.True(t, ok)
-		assert.Equal(t, testOCCError, awsErr)
-		mockSession.AssertNumberOfCalls(t, "SendCommandWithContext", 6)
+
+		var occ *types.OccConflictException
+		assert.True(t, errors.As(err, &occ))
+		assert.Equal(t, testOCCError, err)
+		mockSession.AssertNumberOfCalls(t, "SendCommand", 6)
 	})
 
 	t.Run("success execute without retry", func(t *testing.T) {
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil)
 		testDriver.qldbSession = mockSession
 
 		testDriver.sessionPool = make(chan *session, 10)
@@ -283,25 +257,25 @@ func TestExecute(t *testing.T) {
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
-		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSession := &types.StartSessionRequest{LedgerName: &mockLedgerName}
 		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
 
-		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransaction := &types.StartTransactionRequest{}
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
-		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		startTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
+		commitTransaction := &types.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
-		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		commitTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		testISE := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil), http.StatusBadRequest, "reqID")
+		testISE := &types.InvalidSessionException{Code: &ErrCodeInvalidSessionException, Message: &ErrMessageInvalidSessionException}
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).
+		mockSession.On("SendCommand", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, commitTransactionRequest, mock.Anything).
 			Return(&mockSendCommandWithTxID, testISE).Times(4)
-		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).
+		mockSession.On("SendCommand", mock.Anything, commitTransactionRequest, mock.Anything).
 			Return(&mockSendCommandWithTxID, nil).Once()
 
 		testDriver.qldbSession = mockSession
@@ -326,23 +300,23 @@ func TestExecute(t *testing.T) {
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
-		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSession := &types.StartSessionRequest{LedgerName: &mockLedgerName}
 		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
 
-		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransaction := &types.StartTransactionRequest{}
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
-		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		startTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
+		commitTransaction := &types.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
-		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		commitTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		testISE := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil), http.StatusBadRequest, "reqID")
+		testISE := &types.InvalidSessionException{Code: &ErrCodeInvalidSessionException, Message: &ErrMessageInvalidSessionException}
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testISE)
+		mockSession.On("SendCommand", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testISE)
 
 		testDriver.qldbSession = mockSession
 
@@ -358,37 +332,37 @@ func TestExecute(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 
-		awsErr, ok := err.(awserr.Error)
-		assert.True(t, ok)
-		assert.Equal(t, testISE, awsErr)
+		var ise *types.InvalidSessionException
+		assert.True(t, errors.As(err, &ise))
+		assert.Equal(t, testISE, err)
 	})
 
 	t.Run("CapacityExceededException returned when exceed CapacityExceededException retry limit", func(t *testing.T) {
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
-		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSession := &types.StartSessionRequest{LedgerName: &mockLedgerName}
 		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
 
-		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransaction := &types.StartTransactionRequest{}
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
-		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		startTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		abortTransaction := &qldbsession.AbortTransactionRequest{}
+		abortTransaction := &types.AbortTransactionRequest{}
 		abortTransactionRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
-		abortTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		abortTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
+		commitTransaction := &types.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
-		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		commitTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		testCEE := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeCapacityExceededException, "Capacity Exceeded", nil), http.StatusServiceUnavailable, "reqID")
+		testCEE := &types.CapacityExceededException{Message: &ErrMessageCapacityExceedException}
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testCEE)
-		mockSession.On("SendCommandWithContext", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Times(5)
+		mockSession.On("SendCommand", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testCEE)
+		mockSession.On("SendCommand", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Times(5)
 
 		testDriver.qldbSession = mockSession
 
@@ -399,32 +373,32 @@ func TestExecute(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 
-		awsErr, ok := err.(awserr.Error)
-		assert.True(t, ok)
-		assert.Equal(t, testCEE, awsErr)
+		var cee *types.CapacityExceededException
+		assert.True(t, errors.As(err, &cee))
+		assert.Equal(t, testCEE, err)
 	})
 
 	t.Run("error on transaction expiry.", func(t *testing.T) {
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
-		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSession := &types.StartSessionRequest{LedgerName: &mockLedgerName}
 		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
 
-		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransaction := &types.StartTransactionRequest{}
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
-		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		startTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
+		commitTransaction := &types.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
-		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		commitTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		testTxnExpire := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Transaction 23EA3C089B23423D has expired", nil), http.StatusBadRequest, "ReqID")
+		testTxnExpire := &types.InvalidSessionException{Code: &ErrCodeInvalidSessionException, Message: &ErrCodeInvalidSessionException2}
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testTxnExpire).Once()
+		mockSession.On("SendCommand", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testTxnExpire).Once()
 
 		testDriver.qldbSession = mockSession
 
@@ -440,36 +414,36 @@ func TestExecute(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 
-		awsErr, ok := err.(awserr.Error)
-		assert.True(t, ok)
-		assert.Equal(t, testTxnExpire, awsErr)
+		var ise *types.InvalidSessionException
+		assert.True(t, errors.As(err, &ise))
+		assert.Equal(t, testTxnExpire, err)
 	})
 
 	t.Run("abort transaction on customer error", func(t *testing.T) {
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
-		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSession := &types.StartSessionRequest{LedgerName: &mockLedgerName}
 		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
 
-		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransaction := &types.StartTransactionRequest{}
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
-		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		startTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
+		commitTransaction := &types.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
-		commitTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		commitTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		abortTransaction := &qldbsession.AbortTransactionRequest{}
+		abortTransaction := &types.AbortTransactionRequest{}
 		abortTransactionRequest := &qldbsession.SendCommandInput{AbortTransaction: abortTransaction}
-		abortTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		abortTransactionRequest.SessionToken = &mockDriverSessionToken
 
 		customerErr := errors.New("customer error")
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
-		mockSession.On("SendCommandWithContext", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
+		mockSession.On("SendCommand", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, abortTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
 
 		testDriver.qldbSession = mockSession
 
@@ -484,37 +458,37 @@ func TestExecute(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Equal(t, customerErr, err)
 
-		mockSession.AssertNumberOfCalls(t, "SendCommandWithContext", 3)
+		mockSession.AssertNumberOfCalls(t, "SendCommand", 3)
 	})
 
 	t.Run("success execute with retry on ISE and 500", func(t *testing.T) {
 		hash := []byte{167, 123, 231, 255, 170, 172, 35, 142, 73, 31, 239, 199, 252, 120, 175, 217, 235, 220, 184, 200, 85, 203, 140, 230, 151, 221, 131, 255, 163, 151, 170, 210}
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = hash
 
-		startSession := &qldbsession.StartSessionRequest{LedgerName: &mockLedgerName}
+		startSession := &types.StartSessionRequest{LedgerName: &mockLedgerName}
 		startSessionRequest := &qldbsession.SendCommandInput{StartSession: startSession}
 
-		startTransaction := &qldbsession.StartTransactionRequest{}
+		startTransaction := &types.StartTransactionRequest{}
 		startTransactionRequest := &qldbsession.SendCommandInput{StartTransaction: startTransaction}
-		startTransactionRequest.SetSessionToken(mockDriverSessionToken)
+		startTransactionRequest.SessionToken = &mockDriverSessionToken
 
-		commitTransaction := &qldbsession.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
+		commitTransaction := &types.CommitTransactionRequest{TransactionId: &mockTxnID, CommitDigest: hash}
 		commitTransactionRequest := &qldbsession.SendCommandInput{CommitTransaction: commitTransaction}
 
-		testISE := awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil), http.StatusBadRequest, "reqID")
-		test500error := awserr.NewRequestFailure(awserr.New("InternalServerError", "Five Hundred", nil), http.StatusInternalServerError, "reqID")
+		testISE := &types.InvalidSessionException{Code: &ErrCodeInvalidSessionException, Message: &ErrMessageInvalidSessionException}
+		test500error := &InternalFailure{Code: &ErrCodeInternalFailure, Message: &ErrMessageInternalFailure}
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
-		mockSession.On("SendCommandWithContext", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testISE).Once()
+		mockSession.On("SendCommand", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
+		mockSession.On("SendCommand", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
+		mockSession.On("SendCommand", mock.Anything, commitTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, testISE).Once()
 
-		mockSession.On("SendCommandWithContext", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
-		mockSession.On("SendCommandWithContext", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, test500error).Once()
+		mockSession.On("SendCommand", mock.Anything, startSessionRequest, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
+		mockSession.On("SendCommand", mock.Anything, startTransactionRequest, mock.Anything).Return(&mockSendCommandWithTxID, test500error).Once()
 
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil).Once()
 
 		testDriver.qldbSession = mockSession
 
@@ -562,7 +536,7 @@ func TestGetTableNames(t *testing.T) {
 
 	t.Run("error on Execute", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.GetTableNames(context.Background())
@@ -579,12 +553,12 @@ func TestGetTableNames(t *testing.T) {
 		ionStruct := &tableName{"table1"}
 		tableBinary, _ := ion.MarshalBinary(&ionStruct)
 
-		mockValueHolder := &qldbsession.ValueHolder{IonBinary: tableBinary}
-		mockPageValues := make([]*qldbsession.ValueHolder, 1)
+		mockValueHolder := types.ValueHolder{IonBinary: tableBinary}
+		mockPageValues := make([]types.ValueHolder, 1)
 
 		mockPageValues[0] = mockValueHolder
-		mockExecuteForTable := qldbsession.ExecuteStatementResult{}
-		mockExecuteForTable.SetFirstPage(&qldbsession.Page{Values: mockPageValues})
+		mockExecuteForTable := types.ExecuteStatementResult{}
+		mockExecuteForTable.FirstPage = &types.Page{Values: mockPageValues}
 
 		mockSendCommandWithTxID.ExecuteStatement = &mockExecuteForTable
 		mockSendCommandWithTxID.CommitTransaction.CommitDigest = []byte{46, 176, 81, 229, 236, 60, 17, 188, 81, 216, 217, 0, 89, 228, 233, 134, 252, 90, 165, 63, 143, 66, 127, 173, 131, 13, 134, 159, 14, 198, 19, 73}
@@ -593,7 +567,7 @@ func TestGetTableNames(t *testing.T) {
 		expectedTables = append(expectedTables, "table1")
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommandWithTxID, nil)
 		testDriver.qldbSession = mockSession
 
 		result, err := testDriver.GetTableNames(context.Background())
@@ -646,7 +620,7 @@ func TestGetSession(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 
 		session, err := testDriver.getSession(context.Background())
@@ -657,7 +631,7 @@ func TestGetSession(t *testing.T) {
 
 	t.Run("success through createSession while empty pool", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)
 		testDriver.qldbSession = mockSession
 
 		session, err := testDriver.getSession(context.Background())
@@ -681,7 +655,7 @@ func TestGetSession(t *testing.T) {
 		testDriver.sessionPool <- session1
 		testDriver.sessionPool <- session2
 
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 
 		testDriver.qldbSession = mockSession
 
@@ -710,7 +684,7 @@ func TestSessionPoolCapacity(t *testing.T) {
 		defer testDriver.Shutdown(context.Background())
 
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)
 		testDriver.qldbSession = mockSession
 
 		session1, err := testDriver.getSession(context.Background())
@@ -754,7 +728,7 @@ func TestCreateSession(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, errMock)
 		testDriver.qldbSession = mockSession
 
 		testDriver.semaphore.tryAcquire()
@@ -766,7 +740,7 @@ func TestCreateSession(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockDriverSendCommand, nil)
 		testDriver.qldbSession = mockSession
 
 		session, err := testDriver.createSession(context.Background())
@@ -780,7 +754,7 @@ var mockLedgerName = "someLedgerName"
 var defaultMaxConcurrentTransactions = 50
 var defaultRetry = 4
 var mockTxnID = "12341"
-var mockStartTransactionWithID = qldbsession.StartTransactionResult{TransactionId: &mockTxnID}
+var mockStartTransactionWithID = types.StartTransactionResult{TransactionId: &mockTxnID}
 
 var mockSendCommandWithTxID = qldbsession.SendCommandOutput{
 	AbortTransaction:  &mockAbortTransaction,
@@ -793,13 +767,13 @@ var mockSendCommandWithTxID = qldbsession.SendCommandOutput{
 }
 
 var mockDriverSessionToken = "token"
-var mockDriverStartSession = qldbsession.StartSessionResult{SessionToken: &mockDriverSessionToken}
-var mockDriverAbortTransaction = qldbsession.AbortTransactionResult{}
-var mockDriverCommitTransaction = qldbsession.CommitTransactionResult{}
-var mockDriverExecuteStatement = qldbsession.ExecuteStatementResult{}
-var mockDriverEndSession = qldbsession.EndSessionResult{}
-var mockDriverFetchPage = qldbsession.FetchPageResult{}
-var mockDriverStartTransaction = qldbsession.StartTransactionResult{}
+var mockDriverStartSession = types.StartSessionResult{SessionToken: &mockDriverSessionToken}
+var mockDriverAbortTransaction = types.AbortTransactionResult{}
+var mockDriverCommitTransaction = types.CommitTransactionResult{}
+var mockDriverExecuteStatement = types.ExecuteStatementResult{}
+var mockDriverEndSession = types.EndSessionResult{}
+var mockDriverFetchPage = types.FetchPageResult{}
+var mockDriverStartTransaction = types.StartTransactionResult{}
 var mockDriverSendCommand = qldbsession.SendCommandOutput{
 	AbortTransaction:  &mockDriverAbortTransaction,
 	CommitTransaction: &mockDriverCommitTransaction,

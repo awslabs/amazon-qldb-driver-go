@@ -15,8 +15,7 @@ package qldbdriver
 
 import (
 	"context"
-
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
 )
 
 // Result is a cursor over a result set from a QLDB statement.
@@ -32,7 +31,7 @@ type result struct {
 	ctx          context.Context
 	communicator qldbService
 	txnID        *string
-	pageValues   []*qldbsession.ValueHolder
+	pageValues   []types.ValueHolder
 	pageToken    *string
 	index        int
 	logger       *qldbLogger
@@ -81,14 +80,14 @@ func (result *result) getNextPage() error {
 	return nil
 }
 
-func (result *result) updateMetrics(fetchPageResult *qldbsession.FetchPageResult) {
+func (result *result) updateMetrics(fetchPageResult *types.FetchPageResult) {
 	if fetchPageResult.ConsumedIOs != nil {
-		*result.ioUsage.readIOs += *fetchPageResult.ConsumedIOs.ReadIOs
-		*result.ioUsage.writeIOs += *fetchPageResult.ConsumedIOs.WriteIOs
+		*result.ioUsage.readIOs += fetchPageResult.ConsumedIOs.ReadIOs
+		*result.ioUsage.writeIOs += fetchPageResult.ConsumedIOs.WriteIOs
 	}
 
 	if fetchPageResult.TimingInformation != nil {
-		*result.timingInfo.processingTimeMilliseconds += *fetchPageResult.TimingInformation.ProcessingTimeMilliseconds
+		*result.timingInfo.processingTimeMilliseconds += fetchPageResult.TimingInformation.ProcessingTimeMilliseconds
 	}
 }
 

@@ -18,9 +18,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -28,7 +27,7 @@ import (
 func TestStartSession(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		communicator, err := startSession(context.Background(), "ledgerName", mockSession, mockLogger)
 
 		assert.Equal(t, err, errMock)
@@ -37,7 +36,7 @@ func TestStartSession(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		communicator, err := startSession(context.Background(), "ledgerName", mockSession, mockLogger)
 		assert.NoError(t, err)
 
@@ -55,7 +54,7 @@ func TestAbortTransaction(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.abortTransaction(context.Background())
 
@@ -65,7 +64,7 @@ func TestAbortTransaction(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.abortTransaction(context.Background())
 
@@ -83,7 +82,7 @@ func TestCommitTransaction(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.commitTransaction(context.Background(), nil, nil)
 
@@ -93,7 +92,7 @@ func TestCommitTransaction(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.commitTransaction(context.Background(), nil, nil)
 
@@ -111,7 +110,7 @@ func TestExecuteStatement(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.executeStatement(context.Background(), nil, nil, nil)
 
@@ -121,7 +120,7 @@ func TestExecuteStatement(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.executeStatement(context.Background(), nil, nil, nil)
 
@@ -139,7 +138,7 @@ func TestEndSession(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.endSession(context.Background())
 
@@ -149,7 +148,7 @@ func TestEndSession(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.endSession(context.Background())
 
@@ -167,7 +166,7 @@ func TestFetchPage(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.fetchPage(context.Background(), nil, nil)
 
@@ -177,7 +176,7 @@ func TestFetchPage(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.fetchPage(context.Background(), nil, nil)
 
@@ -195,7 +194,7 @@ func TestStartTransaction(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.startTransaction(context.Background())
 
@@ -205,7 +204,7 @@ func TestStartTransaction(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockSession := new(mockQLDBSession)
-		mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
+		mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, nil)
 		testCommunicator.service = mockSession
 		result, err := testCommunicator.startTransaction(context.Background())
 
@@ -221,7 +220,7 @@ func TestSendCommand(t *testing.T) {
 		logger:       mockLogger,
 	}
 	mockSession := new(mockQLDBSession)
-	mockSession.On("SendCommandWithContext", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
+	mockSession.On("SendCommand", mock.Anything, mock.Anything, mock.Anything).Return(&mockSendCommand, errMock)
 	testCommunicator.service = mockSession
 	result, err := testCommunicator.sendCommand(context.Background(), &qldbsession.SendCommandInput{})
 
@@ -233,13 +232,13 @@ var mockLogger = &qldbLogger{defaultLogger{}, LogOff}
 var errMock = errors.New("mock")
 
 var mockSessionToken = "token"
-var mockStartSession = qldbsession.StartSessionResult{SessionToken: &mockSessionToken}
-var mockAbortTransaction = qldbsession.AbortTransactionResult{}
-var mockCommitTransaction = qldbsession.CommitTransactionResult{}
-var mockExecuteStatement = qldbsession.ExecuteStatementResult{}
-var mockEndSession = qldbsession.EndSessionResult{}
-var mockFetchPage = qldbsession.FetchPageResult{}
-var mockStartTransaction = qldbsession.StartTransactionResult{}
+var mockStartSession = types.StartSessionResult{SessionToken: &mockSessionToken}
+var mockAbortTransaction = types.AbortTransactionResult{}
+var mockCommitTransaction = types.CommitTransactionResult{}
+var mockExecuteStatement = types.ExecuteStatementResult{}
+var mockEndSession = types.EndSessionResult{}
+var mockFetchPage = types.FetchPageResult{}
+var mockStartTransaction = types.StartTransactionResult{}
 var mockSendCommand = qldbsession.SendCommandOutput{
 	AbortTransaction:  &mockAbortTransaction,
 	CommitTransaction: &mockCommitTransaction,
@@ -254,15 +253,9 @@ type mockQLDBSession struct {
 	mock.Mock
 }
 
-func (m *mockQLDBSession) SendCommandWithContext(ctx aws.Context, input *qldbsession.SendCommandInput, options ...request.Option) (*qldbsession.SendCommandOutput, error) {
-	args := m.Called(ctx, input, options)
+func (m *mockQLDBSession) SendCommand(ctx context.Context, params *qldbsession.SendCommandInput, optFns ...func(*qldbsession.Options)) (*qldbsession.SendCommandOutput, error) {
+	args := m.Called(ctx, params, optFns)
 	return args.Get(0).(*qldbsession.SendCommandOutput), args.Error(1)
 }
 
-func (m *mockQLDBSession) SendCommand(input *qldbsession.SendCommandInput) (*qldbsession.SendCommandOutput, error) {
-	panic("unused method")
-}
 
-func (m *mockQLDBSession) SendCommandRequest(input *qldbsession.SendCommandInput) (*request.Request, *qldbsession.SendCommandOutput) {
-	panic("unused method")
-}

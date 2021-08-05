@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/amzn/ion-go/ion"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
-	"github.com/aws/aws-sdk-go/service/qldbsession/qldbsessioniface"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession"
+	"github.com/awslabs/amazon-qldb-driver-go/v2/qldbdriver/qldbsessioniface"
 )
 
 // DriverOptions can be used to configure the driver during construction.
@@ -40,7 +40,7 @@ type DriverOptions struct {
 // QLDBDriver is used to execute statements against QLDB. Call constructor qldbdriver.New for a valid QLDBDriver.
 type QLDBDriver struct {
 	ledgerName                string
-	qldbSession               qldbsessioniface.QLDBSessionAPI
+	qldbSession               qldbsessioniface.ClientAPI
 	maxConcurrentTransactions int
 	logger                    *qldbLogger
 	isClosed                  bool
@@ -56,9 +56,9 @@ type semaphore struct {
 
 // New creates a QLBDDriver using the parameters and options, and verifies the configuration.
 //
-// Note that qldbSession.Client.Config.MaxRetries will be set to 0. This property should not be modified.
-// DriverOptions.RetryLimit is unrelated to this property, but should be used if it is desired to modify the amount of retires for statement executions.
-func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*DriverOptions)) (*QLDBDriver, error) {
+// Note that qldbSession will disable all SDK retry attempts when calling service operations.
+// DriverOptions.RetryLimit is unrelated to SDK retries, but should be used if it is desired to modify the amount of retires for statement executions.
+func New(ledgerName string, qldbSession *qldbsession.Client, fns ...func(*DriverOptions)) (*QLDBDriver, error) {
 	if qldbSession == nil {
 		return nil, &qldbDriverError{"Provided QLDBSession is nil."}
 	}
@@ -79,14 +79,6 @@ func New(ledgerName string, qldbSession *qldbsession.QLDBSession, fns ...func(*D
 	logger := &qldbLogger{options.Logger, options.LoggerVerbosity}
 
 	driverQldbSession := *qldbSession
-	if qldbSession.Client != nil {
-		client := *qldbSession.Client
-
-		qldbSDKRetries := 0
-		client.Config.MaxRetries = &qldbSDKRetries
-
-		driverQldbSession.Client = &client
-	}
 
 	semaphore := makeSemaphore(options.MaxConcurrentTransactions)
 	sessionPool := make(chan *session, options.MaxConcurrentTransactions)

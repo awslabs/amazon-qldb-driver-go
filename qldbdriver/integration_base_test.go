@@ -16,19 +16,22 @@
 package qldbdriver
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	AWSSession "github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/qldb"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/qldb"
+	"github.com/aws/aws-sdk-go-v2/service/qldb/types"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession"
+	"github.com/aws/smithy-go"
 	"github.com/stretchr/testify/assert"
 )
 
 type testBase struct {
-	qldb       *qldb.QLDB
+	qldb       *qldb.Client
 	ledgerName *string
 	regionName *string
 	logger     Logger
@@ -46,9 +49,14 @@ const (
 )
 
 func createTestBase() *testBase {
-	sess, err := AWSSession.NewSession(aws.NewConfig().WithRegion(region))
-	mySession := AWSSession.Must(sess, err)
-	client := qldb.New(mySession)
+
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+	client := qldb.NewFromConfig(cfg, func(options *qldb.Options) {
+		options.Region = region
+	})
 	logger := defaultLogger{}
 	ledgerName := ledger
 	regionName := region
@@ -58,8 +66,8 @@ func createTestBase() *testBase {
 func (testBase *testBase) createLedger(t *testing.T) {
 	testBase.logger.Log(fmt.Sprint("Creating ledger named ", *testBase.ledgerName, " ..."), LogInfo)
 	deletionProtection := false
-	permissions := "ALLOW_ALL"
-	_, err := testBase.qldb.CreateLedger(&qldb.CreateLedgerInput{Name: testBase.ledgerName, DeletionProtection: &deletionProtection, PermissionsMode: &permissions})
+	permissions := types.PermissionsModeAllowAll
+	_, err := testBase.qldb.CreateLedger(context.TODO(), &qldb.CreateLedgerInput{Name: testBase.ledgerName, DeletionProtection: &deletionProtection, PermissionsMode: permissions})
 	assert.NoError(t, err)
 	testBase.waitForActive()
 }
@@ -67,10 +75,11 @@ func (testBase *testBase) createLedger(t *testing.T) {
 func (testBase *testBase) deleteLedger(t *testing.T) {
 	testBase.logger.Log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName), LogInfo)
 	deletionProtection := false
-	_, _ = testBase.qldb.UpdateLedger(&qldb.UpdateLedgerInput{DeletionProtection: &deletionProtection, Name: testBase.ledgerName})
-	_, err := testBase.qldb.DeleteLedger(&qldb.DeleteLedgerInput{Name: testBase.ledgerName})
+	_, _ = testBase.qldb.UpdateLedger(context.TODO(), &qldb.UpdateLedgerInput{DeletionProtection: &deletionProtection, Name: testBase.ledgerName})
+	_, err := testBase.qldb.DeleteLedger(context.TODO(), &qldb.DeleteLedgerInput{Name: testBase.ledgerName})
 	if err != nil {
-		if _, ok := err.(*qldb.ResourceNotFoundException); ok {
+		var rnf *types.ResourceNotFoundException
+		if errors.As(err, &rnf) {
 			testBase.logger.Log("Encountered resource not found", LogInfo)
 			return
 		}
@@ -86,8 +95,8 @@ func (testBase *testBase) deleteLedger(t *testing.T) {
 func (testBase *testBase) waitForActive() {
 	testBase.logger.Log("Waiting for ledger to become active...", LogInfo)
 	for {
-		output, _ := testBase.qldb.DescribeLedger(&qldb.DescribeLedgerInput{Name: testBase.ledgerName})
-		if *output.State == "ACTIVE" {
+		output, _ := testBase.qldb.DescribeLedger(context.TODO(), &qldb.DescribeLedgerInput{Name: testBase.ledgerName})
+		if output.State == "ACTIVE" {
 			testBase.logger.Log("Success. Ledger is active and ready to use.", LogInfo)
 			return
 		}
@@ -99,10 +108,11 @@ func (testBase *testBase) waitForActive() {
 func (testBase *testBase) waitForDeletion() {
 	testBase.logger.Log("Waiting for ledger to be deleted...", LogInfo)
 	for {
-		_, err := testBase.qldb.DescribeLedger(&qldb.DescribeLedgerInput{Name: testBase.ledgerName})
+		_, err := testBase.qldb.DescribeLedger(context.TODO(), &qldb.DescribeLedgerInput{Name: testBase.ledgerName})
 		testBase.logger.Log("The ledger is still deleting. Please wait...", LogInfo)
 		if err != nil {
-			if _, ok := err.(*qldb.ResourceNotFoundException); ok {
+			var rnf *types.ResourceNotFoundException
+			if errors.As(err, &rnf) {
 				testBase.logger.Log("The ledger is deleted", LogInfo)
 				return
 			}
@@ -112,8 +122,14 @@ func (testBase *testBase) waitForDeletion() {
 }
 
 func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions int, retryLimit int) (*QLDBDriver, error) {
-	driverSession := AWSSession.Must(AWSSession.NewSession(aws.NewConfig().WithRegion(*testBase.regionName)))
-	qldbSession := qldbsession.New(driverSession)
+
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+	qldbSession := qldbsession.NewFromConfig(cfg, func(options *qldbsession.Options) {
+		options.Region = region
+	})
 
 	return New(ledgerName, qldbSession, func(options *DriverOptions) {
 		options.LoggerVerbosity = LogInfo
@@ -121,3 +137,32 @@ func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions
 		options.RetryPolicy.MaxRetryLimit = retryLimit
 	})
 }
+
+var ErrCodeInvalidSessionException = "InvalidSessionException"
+var ErrMessageInvalidSessionException = "Invalid session"
+var ErrCodeInvalidSessionException2 = "Transaction 23EA3C089B23423D has expired"
+var ErrMessageOccConflictException = "OCC"
+var ErrCodeBadRequestException = "BadRequestException"
+var ErrMessageBadRequestException = "Bad request"
+var ErrCodeInternalFailure = "InternalFailure"
+var ErrMessageInternalFailure = "Five Hundred"
+var ErrMessageCapacityExceedException = "Capacity Exceeded"
+
+// InternalFailure is used to mock 500s exception in tests
+type InternalFailure struct {
+	Message *string
+	Code *string
+}
+
+func (e *InternalFailure) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InternalFailure) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InternalFailure) ErrorCode() string             { return "InternalFailure" }
+func (e *InternalFailure) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
+

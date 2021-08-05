@@ -16,11 +16,9 @@ package qldbdriver
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -496,59 +494,60 @@ func TestSessionExecute(t *testing.T) {
 		err := session.wrapError(context.Background(), fmt.Errorf("ordinary error"), mockTransactionID)
 		assert.Equal(t, "", err.message)
 
-		err = session.wrapError(context.Background(), fmt.Errorf("wrapped error: %w", testOCC), mockTransactionID)
+		err = session.wrapError(context.Background(), testOCC, mockTransactionID)
 		assert.Equal(t, testOCC, err.err)
 		assert.True(t, err.canRetry)
 	})
 }
 
 var mockTransactionID = "testTransactionIdddddd"
-var mockAbortTransactionResult = qldbsession.AbortTransactionResult{}
-var mockStartTransactionResult = qldbsession.StartTransactionResult{TransactionId: &mockTransactionID}
-var mockEndSessionResult = qldbsession.EndSessionResult{}
-var mockExecuteResult = qldbsession.ExecuteStatementResult{
-	FirstPage: &qldbsession.Page{},
+var mockAbortTransactionResult = types.AbortTransactionResult{}
+var mockStartTransactionResult = types.StartTransactionResult{TransactionId: &mockTransactionID}
+var mockEndSessionResult = types.EndSessionResult{}
+var mockExecuteResult = types.ExecuteStatementResult{
+	FirstPage: &types.Page{},
 }
 var mockHash = []byte{73, 10, 104, 87, 43, 252, 182, 60, 142, 193, 0, 77, 158, 129, 52, 84, 126, 196, 120, 55, 241, 253, 113, 114, 114, 53, 233, 223, 234, 227, 191, 172}
-var mockCommitTransactionResult = qldbsession.CommitTransactionResult{
+var mockCommitTransactionResult = types.CommitTransactionResult{
 	TransactionId: &mockTransactionID,
 	CommitDigest:  mockHash,
 }
 
-var testISE = awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeInvalidSessionException, "Invalid session", nil), http.StatusBadRequest, "reqID")
-var testOCC = awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeOccConflictException, "OCC", nil), http.StatusBadRequest, "reqID")
-var testBadReq = awserr.NewRequestFailure(awserr.New(qldbsession.ErrCodeBadRequestException, "Bad request", nil), http.StatusBadRequest, "reqID")
-var test500 = awserr.NewRequestFailure(awserr.New(http.StatusText(http.StatusInternalServerError), "Five Hundred", nil), http.StatusInternalServerError, "reqID")
+
+var testISE = &types.InvalidSessionException{Code: &ErrCodeInvalidSessionException, Message: &ErrMessageInvalidSessionException}
+var testOCC = &types.OccConflictException{Message: &ErrMessageOccConflictException}
+var testBadReq = &types.BadRequestException{Code: &ErrCodeBadRequestException, Message: &ErrMessageBadRequestException}
+var test500 = &InternalFailure{Code: &ErrCodeInternalFailure, Message: &ErrMessageInternalFailure}
 
 type mockSessionService struct {
 	mock.Mock
 }
 
-func (m *mockSessionService) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
+func (m *mockSessionService) abortTransaction(ctx context.Context) (*types.AbortTransactionResult, error) {
 	args := m.Called(ctx)
-	return args.Get(0).(*qldbsession.AbortTransactionResult), args.Error(1)
+	return args.Get(0).(*types.AbortTransactionResult), args.Error(1)
 }
 
-func (m *mockSessionService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
+func (m *mockSessionService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*types.CommitTransactionResult, error) {
 	args := m.Called(ctx, txnID, commitDigest)
-	return args.Get(0).(*qldbsession.CommitTransactionResult), args.Error(1)
+	return args.Get(0).(*types.CommitTransactionResult), args.Error(1)
 }
 
-func (m *mockSessionService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnID *string) (*qldbsession.ExecuteStatementResult, error) {
+func (m *mockSessionService) executeStatement(ctx context.Context, statement *string, parameters []types.ValueHolder, txnID *string) (*types.ExecuteStatementResult, error) {
 	args := m.Called(ctx, statement, parameters, txnID)
-	return args.Get(0).(*qldbsession.ExecuteStatementResult), args.Error(1)
+	return args.Get(0).(*types.ExecuteStatementResult), args.Error(1)
 }
 
-func (m *mockSessionService) endSession(ctx context.Context) (*qldbsession.EndSessionResult, error) {
+func (m *mockSessionService) endSession(ctx context.Context) (*types.EndSessionResult, error) {
 	args := m.Called(ctx)
-	return args.Get(0).(*qldbsession.EndSessionResult), args.Error(1)
+	return args.Get(0).(*types.EndSessionResult), args.Error(1)
 }
 
-func (m *mockSessionService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*qldbsession.FetchPageResult, error) {
+func (m *mockSessionService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*types.FetchPageResult, error) {
 	panic("not used")
 }
 
-func (m *mockSessionService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
+func (m *mockSessionService) startTransaction(ctx context.Context) (*types.StartTransactionResult, error) {
 	args := m.Called(ctx)
-	return args.Get(0).(*qldbsession.StartTransactionResult), args.Error(1)
+	return args.Get(0).(*types.StartTransactionResult), args.Error(1)
 }
