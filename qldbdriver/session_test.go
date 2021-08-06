@@ -513,7 +513,6 @@ var mockCommitTransactionResult = types.CommitTransactionResult{
 	CommitDigest:  mockHash,
 }
 
-
 var testISE = &types.InvalidSessionException{Code: &ErrCodeInvalidSessionException, Message: &ErrMessageInvalidSessionException}
 var testOCC = &types.OccConflictException{Message: &ErrMessageOccConflictException}
 var testBadReq = &types.BadRequestException{Code: &ErrCodeBadRequestException, Message: &ErrMessageBadRequestException}

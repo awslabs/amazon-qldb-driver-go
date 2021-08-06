@@ -151,7 +151,7 @@ var ErrMessageCapacityExceedException = "Capacity Exceeded"
 // InternalFailure is used to mock 500s exception in tests
 type InternalFailure struct {
 	Message *string
-	Code *string
+	Code    *string
 }
 
 func (e *InternalFailure) Error() string {
@@ -165,4 +165,3 @@ func (e *InternalFailure) ErrorMessage() string {
 }
 func (e *InternalFailure) ErrorCode() string             { return "InternalFailure" }
 func (e *InternalFailure) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
-

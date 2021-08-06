@@ -257,5 +257,3 @@ func (m *mockQLDBSession) SendCommand(ctx context.Context, params *qldbsession.S
 	args := m.Called(ctx, params, optFns)
 	return args.Get(0).(*qldbsession.SendCommandOutput), args.Error(1)
 }
-
-
