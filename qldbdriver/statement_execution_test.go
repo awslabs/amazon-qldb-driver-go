@@ -17,6 +17,7 @@ package qldbdriver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -24,7 +25,8 @@ import (
 	"time"
 
 	"github.com/amzn/ion-go/ion"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
+	"github.com/aws/smithy-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -128,9 +130,10 @@ func TestStatementExecutionIntegration(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.IsType(t, &qldbsession.BadRequestException{}, err)
-		_, ok := err.(*qldbsession.BadRequestException)
-		assert.True(t, ok)
+		// The exception was wrapped as un-modeled service error responses by SDK V2, not types.BadRequestException
+		// Example response as APIError: code: 412, message: Table with name: USER.GoIntegrationTestTable already exists, fault: unknown
+		var ae smithy.APIError
+		assert.True(t, errors.As(err, &ae))
 	})
 
 	t.Run("Create index", func(t *testing.T) {
@@ -446,9 +449,9 @@ func TestStatementExecutionIntegration(t *testing.T) {
 
 		})
 		assert.Nil(t, executeResult)
-		assert.IsType(t, &qldbsession.OccConflictException{}, err)
-		_, ok := err.(*qldbsession.OccConflictException)
-		assert.True(t, ok)
+
+		var occ *types.OccConflictException
+		assert.True(t, errors.As(err, &occ))
 	})
 
 	t.Run("Execution metrics", func(t *testing.T) {
@@ -634,12 +637,45 @@ func TestStatementExecutionIntegration(t *testing.T) {
 					if !reflect.DeepEqual(parameterValue, *actualVal) {
 						t.Errorf("expected %v, got %v", parameterValue, reflect.ValueOf(*actualVal))
 					}
+				case *ion.Timestamp:
+					_, ok := parameterValue.(time.Time)
+					if ok && !reflect.DeepEqual(parameterValue, (*actualVal).GetDateTime()) {
+						t.Errorf("expected %v, got %v", parameterValue, (*actualVal).GetDateTime())
+					} else if !ok && !reflect.DeepEqual(parameterValue, *actualVal) {
+						t.Errorf("expected %v, got %v", parameterValue, *actualVal)
+					}
 				default:
 					t.Errorf("Could not find type")
 				}
 
 			})
 		}
+
+		// Time.time
+		type TestTableTime struct {
+			Name time.Time `ion:"Name"`
+		}
+		timeParam := time.Now().UTC()
+		testInsertCommon("Time.time",
+			fmt.Sprintf("INSERT INTO %s ?", testTableName),
+			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
+			timeParam,
+			new(ion.Timestamp),
+			TestTableTime{timeParam},
+		)
+
+		// ion.Timestamp
+		type TestTableTimeStamp struct {
+			Name ion.Timestamp `ion:"Name"`
+		}
+		timestampParam := ion.NewTimestampWithFractionalSeconds(time.Now().UTC(), ion.TimestampPrecisionNanosecond, ion.TimezoneUTC, 9)
+		testInsertCommon("ion.Timestamp",
+			fmt.Sprintf("INSERT INTO %s ?", testTableName),
+			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
+			timestampParam,
+			new(ion.Timestamp),
+			TestTableTimeStamp{timestampParam},
+		)
 
 		// boolean
 		type TestTableBoolean struct {
@@ -790,11 +826,38 @@ func TestStatementExecutionIntegration(t *testing.T) {
 					if !reflect.DeepEqual(parameterValue, *actualVal) {
 						t.Errorf("expected %v, got %v", parameterValue, reflect.ValueOf(*actualVal))
 					}
+				case *ion.Timestamp:
+					_, ok := parameterValue.(time.Time)
+					if ok && !reflect.DeepEqual(parameterValue, (*actualVal).GetDateTime()) {
+						t.Errorf("expected %v, got %v", parameterValue, (*actualVal).GetDateTime())
+					} else if !ok && !reflect.DeepEqual(parameterValue, *actualVal) {
+						t.Errorf("expected %v, got %v", parameterValue, *actualVal)
+					}
 				default:
 					t.Errorf("Could not find type")
 				}
 			})
 		}
+
+		// Time.time
+		timeParam := time.Now().UTC()
+		testUpdateCommon("Time.time",
+			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
+			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
+			timeParam,
+			new(ion.Timestamp),
+			timeParam,
+		)
+
+		// ion.Timestamp
+		timestampParam := ion.NewTimestampWithFractionalSeconds(time.Now().UTC(), ion.TimestampPrecisionNanosecond, ion.TimezoneUTC, 9)
+		testUpdateCommon("ion.Timestamp",
+			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
+			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
+			timestampParam,
+			new(ion.Timestamp),
+			timestampParam,
+		)
 
 		// boolean
 		boolParam := true
@@ -937,9 +1000,24 @@ func TestStatementExecutionIntegration(t *testing.T) {
 			return txn.Execute(query)
 		})
 		assert.Nil(t, result)
-		assert.IsType(t, &qldbsession.BadRequestException{}, err)
-		_, ok := err.(*qldbsession.BadRequestException)
-		assert.True(t, ok)
+		// The exception was wrapped as un-modeled service error responses by SDK V2, not types.BadRequestException
+		// Example response as APIError: code: 432, message: Semantic Error: at line 1, column 13: No such variable named 'NonExistentTable'; No such variable named 'NonExistentTable', fault: unknown
+		var ae smithy.APIError
+		assert.True(t, errors.As(err, &ae))
+	})
+
+	t.Run("Return Transaction ID after executing statement", func(t *testing.T) {
+		query := fmt.Sprintf("SELECT * FROM %s", testTableName)
+		txnID, err := qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
+			_, err := txn.Execute(query)
+			if err != nil {
+				return nil, err
+			}
+
+			return txn.ID(), nil
+		})
+		require.NoError(t, err)
+		assert.NotEmpty(t, txnID)
 	})
 
 	// teardown

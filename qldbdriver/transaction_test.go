@@ -17,7 +17,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -27,8 +27,8 @@ func TestTransaction(t *testing.T) {
 	t.Run("execute", func(t *testing.T) {
 		mockHash, _ := toQLDBHash(mockTxnID)
 		mockNextPageToken := "mockToken"
-		var mockPageValues []*qldbsession.ValueHolder
-		mockFirstPage := qldbsession.Page{
+		var mockPageValues []types.ValueHolder
+		mockFirstPage := types.Page{
 			NextPageToken: &mockNextPageToken,
 			Values:        mockPageValues,
 		}
@@ -39,7 +39,7 @@ func TestTransaction(t *testing.T) {
 		qldbsessionTimingInformation := generateQldbsessionTimingInformation(processingTimeMilliseconds)
 		qldbsessionConsumedIOs := generateQldbsessionIOUsage(readIOs, writeIOs)
 
-		executeResult := qldbsession.ExecuteStatementResult{
+		executeResult := types.ExecuteStatementResult{
 			FirstPage: &mockFirstPage,
 		}
 
@@ -109,7 +109,7 @@ func TestTransaction(t *testing.T) {
 		mockHash1[0] = 0
 		mockHash2 := make([]byte, 1)
 		mockHash2[0] = 1
-		mockCommitTransactionResult := qldbsession.CommitTransactionResult{
+		mockCommitTransactionResult := types.CommitTransactionResult{
 			CommitDigest: mockHash1,
 		}
 
@@ -165,12 +165,12 @@ func TestTransactionExecutor(t *testing.T) {
 
 	t.Run("execute", func(t *testing.T) {
 		mockNextPageToken := "mockToken"
-		var mockPageValues []*qldbsession.ValueHolder
-		mockFirstPage := qldbsession.Page{
+		var mockPageValues []types.ValueHolder
+		mockFirstPage := types.Page{
 			NextPageToken: &mockNextPageToken,
 			Values:        mockPageValues,
 		}
-		mockExecuteResult := qldbsession.ExecuteStatementResult{
+		mockExecuteResult := types.ExecuteStatementResult{
 			FirstPage: &mockFirstPage,
 		}
 
@@ -253,18 +253,18 @@ func TestTransactionExecutor(t *testing.T) {
 	t.Run("BufferResult", func(t *testing.T) {
 		mockIonBinary := make([]byte, 1)
 		mockIonBinary[0] = 1
-		mockValueHolder := &qldbsession.ValueHolder{IonBinary: mockIonBinary}
-		mockPageValues := make([]*qldbsession.ValueHolder, 1)
+		mockValueHolder := types.ValueHolder{IonBinary: mockIonBinary}
+		mockPageValues := make([]types.ValueHolder, 1)
 		// Has only one value
 		mockPageValues[0] = mockValueHolder
 
 		mockNextIonBinary := make([]byte, 1)
 		mockNextIonBinary[0] = 2
-		mockNextValueHolder := &qldbsession.ValueHolder{IonBinary: mockNextIonBinary}
-		mockNextPageValues := make([]*qldbsession.ValueHolder, 1)
+		mockNextValueHolder := types.ValueHolder{IonBinary: mockNextIonBinary}
+		mockNextPageValues := make([]types.ValueHolder, 1)
 		// Has only one value
 		mockNextPageValues[0] = mockNextValueHolder
-		mockFetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
+		mockFetchPageResult := types.FetchPageResult{Page: &types.Page{Values: mockNextPageValues}}
 
 		mockPageToken := "mockToken"
 		readIOs := int64(1)
@@ -318,36 +318,41 @@ func TestTransactionExecutor(t *testing.T) {
 		abort := testExecutor.Abort()
 		assert.Error(t, abort)
 	})
+
+	t.Run("Transaction ID", func(t *testing.T) {
+		id := testExecutor.ID()
+		assert.Equal(t, mockID, id)
+	})
 }
 
 type mockTransactionService struct {
 	mock.Mock
 }
 
-func (m *mockTransactionService) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
+func (m *mockTransactionService) abortTransaction(ctx context.Context) (*types.AbortTransactionResult, error) {
 	args := m.Called(ctx)
-	return args.Get(0).(*qldbsession.AbortTransactionResult), args.Error(1)
+	return args.Get(0).(*types.AbortTransactionResult), args.Error(1)
 }
 
-func (m *mockTransactionService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
+func (m *mockTransactionService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*types.CommitTransactionResult, error) {
 	args := m.Called(ctx, txnID, commitDigest)
-	return args.Get(0).(*qldbsession.CommitTransactionResult), args.Error(1)
+	return args.Get(0).(*types.CommitTransactionResult), args.Error(1)
 }
 
-func (m *mockTransactionService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnID *string) (*qldbsession.ExecuteStatementResult, error) {
+func (m *mockTransactionService) executeStatement(ctx context.Context, statement *string, parameters []types.ValueHolder, txnID *string) (*types.ExecuteStatementResult, error) {
 	args := m.Called(ctx, statement, parameters, txnID)
-	return args.Get(0).(*qldbsession.ExecuteStatementResult), args.Error(1)
+	return args.Get(0).(*types.ExecuteStatementResult), args.Error(1)
 }
 
-func (m *mockTransactionService) endSession(ctx context.Context) (*qldbsession.EndSessionResult, error) {
+func (m *mockTransactionService) endSession(ctx context.Context) (*types.EndSessionResult, error) {
 	panic("not used")
 }
 
-func (m *mockTransactionService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*qldbsession.FetchPageResult, error) {
+func (m *mockTransactionService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*types.FetchPageResult, error) {
 	args := m.Called(ctx, pageToken, txnID)
-	return args.Get(0).(*qldbsession.FetchPageResult), args.Error(1)
+	return args.Get(0).(*types.FetchPageResult), args.Error(1)
 }
 
-func (m *mockTransactionService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
+func (m *mockTransactionService) startTransaction(ctx context.Context) (*types.StartTransactionResult, error) {
 	panic("not used")
 }

@@ -19,7 +19,7 @@ import (
 	"reflect"
 
 	"github.com/amzn/ion-go/ion"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
 )
 
 // Transaction represents an active QLDB transaction.
@@ -30,6 +30,8 @@ type Transaction interface {
 	BufferResult(res Result) (BufferedResult, error)
 	// Abort the transaction, discarding any previous statement executions within this transaction.
 	Abort() error
+	// Return the automatically generated transaction ID.
+	ID() string
 }
 
 type transaction struct {
@@ -44,7 +46,7 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 	if err != nil {
 		return nil, err
 	}
-	valueHolders := make([]*qldbsession.ValueHolder, len(parameters))
+	valueHolders := make([]types.ValueHolder, len(parameters))
 	for i, parameter := range parameters {
 		parameterHash, err := toQLDBHash(parameter)
 		if err != nil {
@@ -57,8 +59,8 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 
 		// Can ignore error here since toQLDBHash calls MarshalBinary already
 		ionBinary, _ := ion.MarshalBinary(parameter)
-		valueHolder := qldbsession.ValueHolder{IonBinary: ionBinary}
-		valueHolders[i] = &valueHolder
+		valueHolder := types.ValueHolder{IonBinary: ionBinary}
+		valueHolders[i] = valueHolder
 	}
 	commitHash, err := txn.commitHash.dot(executeHash)
 	if err != nil {
@@ -74,13 +76,13 @@ func (txn *transaction) execute(ctx context.Context, statement string, parameter
 	// create IOUsage and copy the values returned in executeResult.ConsumedIOs
 	var ioUsage = &IOUsage{new(int64), new(int64)}
 	if executeResult.ConsumedIOs != nil {
-		*ioUsage.readIOs += *executeResult.ConsumedIOs.ReadIOs
-		*ioUsage.writeIOs += *executeResult.ConsumedIOs.WriteIOs
+		*ioUsage.readIOs += executeResult.ConsumedIOs.ReadIOs
+		*ioUsage.writeIOs += executeResult.ConsumedIOs.WriteIOs
 	}
 	// create TimingInformation and copy the values returned in executeResult.TimingInformation
 	var timingInfo = &TimingInformation{new(int64)}
 	if executeResult.TimingInformation != nil {
-		*timingInfo.processingTimeMilliseconds = *executeResult.TimingInformation.ProcessingTimeMilliseconds
+		*timingInfo.processingTimeMilliseconds = executeResult.TimingInformation.ProcessingTimeMilliseconds
 	}
 
 	return &result{ctx, txn.communicator, txn.id, executeResult.FirstPage.Values, executeResult.FirstPage.NextPageToken, 0, txn.logger, nil, ioUsage, timingInfo, nil}, nil
@@ -127,4 +129,9 @@ func (executor *transactionExecutor) BufferResult(result Result) (BufferedResult
 // Abort the transaction, discarding any previous statement executions within this transaction.
 func (executor *transactionExecutor) Abort() error {
 	return errors.New("transaction aborted")
+}
+
+// Return the automatically generated transaction ID.
+func (executor *transactionExecutor) ID() string {
+	return *executor.txn.id
 }

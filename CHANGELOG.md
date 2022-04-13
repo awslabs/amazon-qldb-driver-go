@@ -1,4 +1,50 @@
-# 1.1.0
+# 2.0.2 (2021-07-21)
+
+Releases v2.0.0 and v2.0.1 were skipped due to instability issues.
+
+## :tada: Enhancements
+
+* Bumped Ion Go dependency to `v1.1.3` allow support for unmarshalling Ion timestamps to Go time objects.
+
+## :boom: Breaking changes
+
+* The `Logger` interface's `Log` method now takes in a `LogLevel` to specify the logging verbosity. Any instances of `Logger.Log()` will need to be updated accordingly.
+
+    ie.
+    ```go
+    logger.Log("Log Message")
+    ```
+
+    should be updated to
+
+    ```go
+    logger.Log("Log Message", qldbdriver.LogInfo)
+    ```
+
+* `Result` and `BufferedResult` have changed from struct types to interface types. As a consequence of this change, the `Transaction` interface's `Execute()` and `BufferResult()` methods respectively return `Result` and `BufferedResult` rather than `*Result` and `*BufferedResult`. Any logic dereferencing or casting to a `Result` or `BufferedResult` will need to be updated accordingly.
+
+    ie.
+    ```go
+    result.(*BufferedResult)
+    ```
+
+    should be updated to
+
+    ```go
+    result.(BufferedResult)
+    ```
+
+* The `Transaction` interface has a new `ID()` method for exposing the transaction ID. Any implementations of this interface will need a new `ID() string` method defined.
+
+# 1.1.1 (2021-06-16)
+
+## :bug: Fixed
+
+* Bumped Ion Go to `v1.1.2` and Ion Hash Go to `v1.1.1` to fix a bug where inserting certain timestamps would throw an error.
+* Prevent mutation of `*qldbsession.QLDBSession` after passing into QLDBDriver constructor.
+* Allow users to wrap `awserr.RequestFailure` within a transaction lambda and support retryable errors.
+
+# 1.1.0 (2021-02-25)
 
 ## :tada: Enhancements
 

@@ -15,11 +15,11 @@ package qldbdriver
 
 import (
 	"context"
-	"net/http"
+	"errors"
 	"regexp"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
+	"github.com/aws/smithy-go"
 )
 
 var regex = regexp.MustCompile(`Transaction\s.*\shas\sexpired`)
@@ -54,33 +54,36 @@ func (session *session) execute(ctx context.Context, fn func(txn Transaction) (i
 }
 
 func (session *session) wrapError(ctx context.Context, err error, transID string) *txnError {
-	if awsErr, ok := err.(awserr.RequestFailure); ok {
-		switch awsErr.Code() {
-		case qldbsession.ErrCodeInvalidSessionException:
-			match := regex.MatchString(awsErr.Message())
-			return &txnError{
-				transactionID: transID,
-				message:       "Invalid Session Exception.",
-				err:           awsErr,
-				canRetry:      !match,
-				abortSuccess:  false,
-				isISE:         true,
-			}
-		case qldbsession.ErrCodeOccConflictException:
-			return &txnError{
-				transactionID: transID,
-				message:       "OCC Conflict Exception.",
-				err:           awsErr,
-				canRetry:      true,
-				abortSuccess:  true,
-				isISE:         false,
-			}
+	var ise *types.InvalidSessionException
+	var occ *types.OccConflictException
+	var apiErr smithy.APIError
+	switch {
+	case errors.As(err, &ise):
+		match := regex.MatchString(ise.ErrorMessage())
+		return &txnError{
+			transactionID: transID,
+			message:       "Invalid Session Exception.",
+			err:           err,
+			canRetry:      !match,
+			abortSuccess:  false,
+			isISE:         true,
 		}
-		if awsErr.StatusCode() == http.StatusInternalServerError || awsErr.StatusCode() == http.StatusServiceUnavailable {
+	case errors.As(err, &occ):
+		return &txnError{
+			transactionID: transID,
+			message:       "OCC Conflict Exception.",
+			err:           err,
+			canRetry:      true,
+			abortSuccess:  true,
+			isISE:         false,
+		}
+	case errors.As(err, &apiErr):
+		code := apiErr.ErrorCode()
+		if code == "InternalFailure" || code == "ServiceUnavailable" {
 			return &txnError{
 				transactionID: transID,
 				message:       "Service unavailable or internal error.",
-				err:           awsErr,
+				err:           err,
 				canRetry:      true,
 				abortSuccess:  session.tryAbort(ctx),
 				isISE:         false,
