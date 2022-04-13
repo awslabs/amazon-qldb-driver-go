@@ -17,7 +17,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -25,15 +25,15 @@ import (
 func TestResult(t *testing.T) {
 	mockIonBinary := make([]byte, 1)
 	mockIonBinary[0] = 1
-	mockValueHolder := &qldbsession.ValueHolder{IonBinary: mockIonBinary}
-	mockPageValues := make([]*qldbsession.ValueHolder, 1)
+	mockValueHolder := types.ValueHolder{IonBinary: mockIonBinary}
+	mockPageValues := make([]types.ValueHolder, 1)
 	// Has only one value
 	mockPageValues[0] = mockValueHolder
 
 	mockNextIonBinary := make([]byte, 1)
 	mockNextIonBinary[0] = 2
-	mockNextValueHolder := &qldbsession.ValueHolder{IonBinary: mockNextIonBinary}
-	mockNextPageValues := make([]*qldbsession.ValueHolder, 1)
+	mockNextValueHolder := types.ValueHolder{IonBinary: mockNextIonBinary}
+	mockNextPageValues := make([]types.ValueHolder, 1)
 	// Has only one value
 	mockNextPageValues[0] = mockNextValueHolder
 
@@ -55,7 +55,7 @@ func TestResult(t *testing.T) {
 		timingInfo:   newTimingInformation(0),
 	}
 
-	fetchPageResult := qldbsession.FetchPageResult{Page: &qldbsession.Page{Values: mockNextPageValues}}
+	fetchPageResult := types.FetchPageResult{Page: &types.Page{Values: mockNextPageValues}}
 	fetchPageResultWithStats := fetchPageResult
 	fetchPageResultWithStats.TimingInformation = qldbsessionTimingInformation
 	fetchPageResultWithStats.ConsumedIOs = qldbsessionConsumedIOs
@@ -227,40 +227,40 @@ type mockResultService struct {
 	mock.Mock
 }
 
-func (m *mockResultService) abortTransaction(ctx context.Context) (*qldbsession.AbortTransactionResult, error) {
+func (m *mockResultService) abortTransaction(ctx context.Context) (*types.AbortTransactionResult, error) {
 	panic("not used")
 }
 
-func (m *mockResultService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*qldbsession.CommitTransactionResult, error) {
+func (m *mockResultService) commitTransaction(ctx context.Context, txnID *string, commitDigest []byte) (*types.CommitTransactionResult, error) {
 	panic("not used")
 }
 
-func (m *mockResultService) executeStatement(ctx context.Context, statement *string, parameters []*qldbsession.ValueHolder, txnID *string) (*qldbsession.ExecuteStatementResult, error) {
+func (m *mockResultService) executeStatement(ctx context.Context, statement *string, parameters []types.ValueHolder, txnID *string) (*types.ExecuteStatementResult, error) {
 	panic("not used")
 }
 
-func (m *mockResultService) endSession(ctx context.Context) (*qldbsession.EndSessionResult, error) {
+func (m *mockResultService) endSession(ctx context.Context) (*types.EndSessionResult, error) {
 	panic("not used")
 }
 
-func (m *mockResultService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*qldbsession.FetchPageResult, error) {
+func (m *mockResultService) fetchPage(ctx context.Context, pageToken *string, txnID *string) (*types.FetchPageResult, error) {
 	args := m.Called(ctx, pageToken, txnID)
-	return args.Get(0).(*qldbsession.FetchPageResult), args.Error(1)
+	return args.Get(0).(*types.FetchPageResult), args.Error(1)
 }
 
-func (m *mockResultService) startTransaction(ctx context.Context) (*qldbsession.StartTransactionResult, error) {
+func (m *mockResultService) startTransaction(ctx context.Context) (*types.StartTransactionResult, error) {
 	panic("not used")
 }
 
-func generateQldbsessionIOUsage(readIOs int64, writeIOs int64) *qldbsession.IOUsage {
-	return &qldbsession.IOUsage{
-		ReadIOs:  &readIOs,
-		WriteIOs: &writeIOs,
+func generateQldbsessionIOUsage(readIOs int64, writeIOs int64) *types.IOUsage {
+	return &types.IOUsage{
+		ReadIOs:  readIOs,
+		WriteIOs: writeIOs,
 	}
 }
 
-func generateQldbsessionTimingInformation(processingTimeMilliseconds int64) *qldbsession.TimingInformation {
-	return &qldbsession.TimingInformation{
-		ProcessingTimeMilliseconds: &processingTimeMilliseconds,
+func generateQldbsessionTimingInformation(processingTimeMilliseconds int64) *types.TimingInformation {
+	return &types.TimingInformation{
+		ProcessingTimeMilliseconds: processingTimeMilliseconds,
 	}
 }

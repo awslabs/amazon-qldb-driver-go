@@ -6,7 +6,7 @@
 This is the Go driver for [Amazon Quantum Ledger Database (QLDB)](https://aws.amazon.com/qldb/), which allows Golang developers 
 to write software that makes use of Amazon QLDB.
 
-For getting started with the driver, see [Go and Amazon QLDB](https://docs.aws.amazon.com/qldb/latest/developerguide/getting-started.go.html).
+For getting started with the driver, see [Go and Amazon QLDB](https://docs.aws.amazon.com/qldb/latest/developerguide/getting-started.golang.html).
 
 ## Requirements
 

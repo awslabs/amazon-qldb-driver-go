@@ -17,11 +17,11 @@ package qldbdriver
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/qldbsession"
+	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -45,9 +45,8 @@ func TestSessionManagementIntegration(t *testing.T) {
 		_, err = driver.GetTableNames(context.Background())
 		require.Error(t, err)
 
-		awsErr, ok := err.(awserr.Error)
-		assert.True(t, ok)
-		assert.Equal(t, qldbsession.ErrCodeBadRequestException, awsErr.Code())
+		var bre *types.BadRequestException
+		assert.True(t, errors.As(err, &bre))
 	})
 
 	t.Run("Get session when pool doesnt have session and has not hit limit", func(t *testing.T) {
