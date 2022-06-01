@@ -707,22 +707,20 @@ func TestStatementExecutionIntegration(t *testing.T) {
 		type TestTableFloat32 struct {
 			Name float32 `ion:"Name"`
 		}
-		var float32Param float32
-		float32Param = math.MaxFloat32
+		var float32Param float32 = math.MaxFloat32
 		testInsertCommon("float32",
 			fmt.Sprintf("INSERT INTO %s ?", testTableName),
 			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
 			float32Param,
 			new(float32),
-			TestTableFloat32{float32Param},
+			TestTableFloat32{float32(float32Param)},
 		)
 
 		// float64
 		type TestTableFloat64 struct {
 			Name float64 `ion:"Name"`
 		}
-		var float64Param float64
-		float64Param = math.MaxFloat64
+		var float64Param float64 = math.MaxFloat64
 		testInsertCommon("float64",
 			fmt.Sprintf("INSERT INTO %s ?", testTableName),
 			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
@@ -880,8 +878,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 		)
 
 		// float32
-		var float32Param float32
-		float32Param = math.MaxFloat32
+		var float32Param float32 = math.MaxFloat32
 		testUpdateCommon("float32",
 			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
 			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
@@ -891,8 +888,7 @@ func TestStatementExecutionIntegration(t *testing.T) {
 		)
 
 		// float64
-		var float64Param float64
-		float64Param = math.MaxFloat64
+		var float64Param float64 = math.MaxFloat64
 		testUpdateCommon("float64",
 			fmt.Sprintf("UPDATE %s SET %s = ?", testTableName, columnName),
 			fmt.Sprintf("SELECT VALUE %s FROM %s WHERE %s = ?", columnName, testTableName, columnName),
