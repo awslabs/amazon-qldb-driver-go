@@ -83,6 +83,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 		errs, ctx := errgroup.WithContext(context.Background())
 
 		for i := 0; i < 3; i++ {
+			i := i
 			errs.Go(func() error {
 				testBase.logger.Log("start "+string(rune(i)), LogInfo)
 				_, err := driver.GetTableNames(ctx)
