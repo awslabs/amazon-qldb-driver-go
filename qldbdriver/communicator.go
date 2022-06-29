@@ -23,7 +23,7 @@ import (
 	"github.com/awslabs/amazon-qldb-driver-go/v2/qldbdriver/qldbsessioniface"
 )
 
-const version string = "2.0.0"
+const version string = "3.0.0"
 const userAgentString string = "QLDB Driver for Golang v" + version
 
 type qldbService interface {

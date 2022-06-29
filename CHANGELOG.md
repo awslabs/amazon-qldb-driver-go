@@ -1,3 +1,46 @@
+# 3.0.0 (2022-06-30)
+
+## :tada: Enhancements
+
+* Migrate to [AWS SDK for Go v2](https://github.com/aws/aws-sdk-go-v2).
+
+## :boom: Breaking changes
+
+* Bump minimum Go version from `1.14` to `1.15` as required by SDK V2
+* Driver constructor is changed to takes new type of `qldbSession` client. Application code need to be modified for [qldbSession client](https://github.com/aws/aws-sdk-go-v2/tree/main/service/qldbsession) construction.
+   ie:
+  ```
+  import "github.com/aws/aws-sdk-go/aws/session"
+  import "github.com/aws/aws-sdk-go/service/qldbSession"
+
+  // ...
+
+  sess, err := session.NewSession()
+  if err != nil {
+	  // handle error
+  }
+
+  client := s3.New(sess)
+  ```
+
+   should be changed to
+
+   ``` 
+  import "context"
+  import "github.com/aws/aws-sdk-go-v2/config"
+  import "github.com/aws/aws-sdk-go-v2/service/qldbSession"
+
+  // ...
+
+  cfg, err := config.LoadDefaultConfig(context.TODO())
+  if err != nil {
+    panic(err)
+  }
+  qldbSession := qldbsession.NewFromConfig(cfg) 
+   ```
+* Error handling is updated to comply with the [v2 error types]( https://aws.github.io/aws-sdk-go-v2/docs/migrating/#errors-types). The exception was wrapped as un-modeled service error responses by SDK V2, not `types.BadRequestException` for example. Application code should be updated to handle error properly if needed.
+
+
 # 2.0.2 (2021-07-21)
 
 Releases v2.0.0 and v2.0.1 were skipped due to instability issues.
