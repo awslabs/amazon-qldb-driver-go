@@ -20,7 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/service/qldbsession"
 	"github.com/aws/aws-sdk-go-v2/service/qldbsession/types"
-	"github.com/awslabs/amazon-qldb-driver-go/v2/qldbdriver/qldbsessioniface"
+	"github.com/awslabs/amazon-qldb-driver-go/v3/qldbdriver/qldbsessioniface"
 )
 
 const version string = "3.0.0"

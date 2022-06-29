@@ -21,7 +21,7 @@ import (
 
 	"github.com/amzn/ion-go/ion"
 	"github.com/aws/aws-sdk-go-v2/service/qldbsession"
-	"github.com/awslabs/amazon-qldb-driver-go/v2/qldbdriver/qldbsessioniface"
+	"github.com/awslabs/amazon-qldb-driver-go/v3/qldbdriver/qldbsessioniface"
 )
 
 // DriverOptions can be used to configure the driver during construction.
