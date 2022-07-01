@@ -11,7 +11,7 @@
 * Bumped minimum Go version from `1.14` to `1.15` as required by SDK V2. 
 * Changed driver constructor to take a new type of `qldbSession` client. Application code needs to be modified for [qldbSession client]( https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/qldbsession) construction.
   For example, the following:
-  ```
+  ```go
   import "github.com/aws/aws-sdk-go/aws/session"
   import "github.com/aws/aws-sdk-go/service/qldbSession"
 
@@ -19,7 +19,7 @@
 
   sess, err := session.NewSession()
   if err != nil {
-	  // handle error
+	// handle error
   }
 
   client := s3.New(sess)
@@ -27,7 +27,7 @@
 
   Should be changed to
 
-   ``` 
+   ```go
   import "context"
   import "github.com/aws/aws-sdk-go-v2/config"
   import "github.com/aws/aws-sdk-go-v2/service/qldbSession"
@@ -36,7 +36,7 @@
 
   cfg, err := config.LoadDefaultConfig(context.TODO())
   if err != nil {
-    panic(err)
+	// handle error
   }
   qldbSession := qldbsession.NewFromConfig(cfg) 
    ```
