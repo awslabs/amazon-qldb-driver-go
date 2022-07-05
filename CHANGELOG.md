@@ -1,3 +1,48 @@
+# 3.0.0 (2022-07-05)
+
+## :tada: Enhancements
+
+* Migrate to [AWS SDK for Go V2](https://github.com/aws/aws-sdk-go-v2).
+
+## :boom: Breaking changes
+
+> All the breaking changes are introduced by SDK V2, please check [Migrating to the AWS SDK for Go V2](https://aws.github.io/aws-sdk-go-v2/docs/migrating/) to learn how to migrate to the AWS SDK for Go V2 from AWS SDK for Go V1.
+
+* Bumped minimum Go version from `1.14` to `1.15` as required by SDK V2. 
+* Changed driver constructor to take a new type of `qldbSession` client. Application code needs to be modified for [qldbSession client]( https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/qldbsession) construction.
+  For example, the following:
+  ```go
+  import "github.com/aws/aws-sdk-go/aws/session"
+  import "github.com/aws/aws-sdk-go/service/qldbSession"
+
+  // ...
+
+  sess, err := session.NewSession()
+  if err != nil {
+	// handle error
+  }
+
+  client := s3.New(sess)
+  ```
+
+  Should be changed to
+
+   ```go
+  import "context"
+  import "github.com/aws/aws-sdk-go-v2/config"
+  import "github.com/aws/aws-sdk-go-v2/service/qldbSession"
+
+  // ...
+
+  cfg, err := config.LoadDefaultConfig(context.TODO())
+  if err != nil {
+	// handle error
+  }
+  qldbSession := qldbsession.NewFromConfig(cfg) 
+   ```
+* The driver now returns modeled service errors that could be found in `qldbSession` client [types](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/qldbsession/types). Application code which uses a type assertion or type switch to check error types should be updated to use [errors.As](https://pkg.go.dev/errors#As) to test whether the returned operation error is a modeled service error. Fore more details about error type changes in the AWS SDK for Go V2, see [Error Types](https://aws.github.io/aws-sdk-go-v2/docs/migrating/#errors-types).
+
+
 # 2.0.2 (2021-07-21)
 
 Releases v2.0.0 and v2.0.1 were skipped due to instability issues.

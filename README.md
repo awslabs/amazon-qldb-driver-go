@@ -16,7 +16,7 @@ See [Accessing Amazon QLDB](https://docs.aws.amazon.com/qldb/latest/developergui
 
 ### Required Golang versions
 
-QldbDriver requires Golang 1.14 or later.
+QldbDriver requires Golang 1.15 or later.
 
 Please see the link below for more detail to install Golang:
 
@@ -30,7 +30,7 @@ First, ensure your project is using [Go modules](https://blog.golang.org/using-g
 
 In your project directory, install the driver using go get:
 
-```go get github.com/awslabs/amazon-qldb-driver-go/v2/qldbdriver```
+```go get github.com/awslabs/amazon-qldb-driver-go/v3/qldbdriver```
 
 For more instructions on working with the golang driver, please refer to the instructions below.
 
