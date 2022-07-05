@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.15.9
 	github.com/aws/aws-sdk-go-v2/service/qldb v1.14.6
 	github.com/aws/aws-sdk-go-v2/service/qldbsession v1.13.5
-	github.com/aws/smithy-go v1.11.2
+	github.com/aws/smithy-go v1.12.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
 	github.com/stretchr/testify v1.7.1
