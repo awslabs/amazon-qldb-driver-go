@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/amzn/ion-go v1.1.3
 	github.com/amzn/ion-hash-go v1.1.2
-	github.com/aws/aws-sdk-go-v2 v1.16.7
+	github.com/aws/aws-sdk-go-v2 v1.16.8
 	github.com/aws/aws-sdk-go-v2/config v1.15.14
 	github.com/aws/aws-sdk-go-v2/service/qldb v1.14.9
 	github.com/aws/aws-sdk-go-v2/service/qldbsession v1.13.8
