@@ -40,7 +40,7 @@
   }
   qldbSession := qldbsession.NewFromConfig(cfg) 
    ```
-* The driver now returns modeled service errors that could be found in `qldbSession` client [types](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/qldbsession/types). Application code which uses a type assertion or type switch to check error types should be updated to use [errors.As](https://pkg.go.dev/errors#As) to test whether the returned operation error is a modeled service error. Fore more details about error type changes in the AWS SDK for Go V2, see [Error Types](https://aws.github.io/aws-sdk-go-v2/docs/migrating/#errors-types).
+* The driver now returns modeled service errors that could be found in `qldbSession` client [types](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/qldbsession/types). Application code which uses a type assertion or type switch to check error types should be updated to use [errors.As](https://pkg.go.dev/errors#As) to test whether the returned operation error is a modeled service error. For more details about error type changes in the AWS SDK for Go V2, see [Error Types](https://aws.github.io/aws-sdk-go-v2/docs/migrating/#errors-types).
 
 
 # 2.0.2 (2021-07-21)
