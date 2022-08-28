@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.16.11
 	github.com/aws/aws-sdk-go-v2/config v1.17.1
 	github.com/aws/aws-sdk-go-v2/service/qldb v1.14.13
-	github.com/aws/aws-sdk-go-v2/service/qldbsession v1.13.8
+	github.com/aws/aws-sdk-go-v2/service/qldbsession v1.13.12
 	github.com/aws/smithy-go v1.12.1
 	github.com/kr/text v0.2.0 // indirect
 	github.com/stretchr/testify v1.8.0
