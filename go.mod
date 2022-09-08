@@ -7,7 +7,6 @@ require (
 	github.com/amzn/ion-hash-go v1.1.2
 	github.com/aws/aws-sdk-go-v2 v1.16.14
 	github.com/aws/aws-sdk-go-v2/config v1.17.5
-	github.com/aws/aws-sdk-go-v2/service/qldb v1.14.13
 	github.com/aws/aws-sdk-go-v2/service/qldb v1.14.16
 	github.com/aws/aws-sdk-go-v2/service/qldbsession v1.13.15
 	github.com/aws/smithy-go v1.13.2
