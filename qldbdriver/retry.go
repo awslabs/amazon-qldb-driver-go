@@ -48,5 +48,5 @@ func (s ExponentialBackoffStrategy) Delay(retryAttempt int) time.Duration {
 	rand.Seed(time.Now().UTC().UnixNano())
 	jitter := rand.Float64()*0.5 + 0.5
 
-	return time.Duration(jitter*math.Min(float64(s.SleepCap.Milliseconds()), math.Pow(float64(s.SleepBase.Milliseconds()), float64(retryAttempt)))) * time.Millisecond
+	return time.Duration(jitter*math.Min(float64(s.SleepCap.Milliseconds()), float64(s.SleepBase.Milliseconds())*math.Pow(2, float64(retryAttempt)))) * time.Millisecond
 }
