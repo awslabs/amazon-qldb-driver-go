@@ -1,3 +1,9 @@
+# 3.0.1 (2022-11-08)
+
+## :bug: Fixed
+
+* Fix default backoff jitter taking too much time [PR 122](https://github.com/awslabs/amazon-qldb-driver-go/pull/122).
+
 # 3.0.0 (2022-08-11)
 
 ## :tada: Enhancements
