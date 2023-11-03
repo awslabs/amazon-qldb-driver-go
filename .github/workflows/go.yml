@@ -57,6 +57,7 @@ jobs:
       with:
         aws-region: us-east-2
         role-to-assume: arn:aws:iam::264319671630:role/GitHubActionsOidc
+        unset-current-credentials: true
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v4
