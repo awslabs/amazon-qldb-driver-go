@@ -36,6 +36,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 	testBase := createTestBase()
 	testBase.deleteLedger(t)
 	testBase.createLedger(t)
+	defer testBase.deleteLedger(t)
 
 	t.Run("Fail connecting to non existent ledger", func(t *testing.T) {
 		driver, err := testBase.getDriver("NoSuchALedger", 10, 4)
@@ -108,7 +109,4 @@ func TestSessionManagementIntegration(t *testing.T) {
 		_, err = driver.GetTableNames(context.Background())
 		assert.Error(t, err)
 	})
-
-	// cleanup
-	testBase.deleteLedger(t)
 }

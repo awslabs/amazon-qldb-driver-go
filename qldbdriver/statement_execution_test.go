@@ -55,9 +55,11 @@ func TestStatementExecutionIntegration(t *testing.T) {
 	testBase := createTestBase()
 	testBase.deleteLedger(t)
 	testBase.createLedger(t)
+	defer testBase.deleteLedger(t)
 
 	qldbDriver, err := testBase.getDriver(ledger, 10, 4)
 	require.NoError(t, err)
+	defer qldbDriver.Shutdown(context.Background())
 
 	_, err = qldbDriver.Execute(context.Background(), func(txn Transaction) (interface{}, error) {
 		return txn.Execute(fmt.Sprintf("CREATE TABLE %s", testTableName))
@@ -1015,8 +1017,4 @@ func TestStatementExecutionIntegration(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, txnID)
 	})
-
-	// teardown
-	qldbDriver.Shutdown(context.Background())
-	testBase.deleteLedger(t)
 }
