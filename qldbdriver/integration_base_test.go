@@ -75,8 +75,6 @@ func (testBase *testBase) createLedger(t *testing.T) {
 
 func (testBase *testBase) deleteLedger(t *testing.T) {
 	testBase.logger.Log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName), LogInfo)
-	deletionProtection := false
-	_, _ = testBase.qldb.UpdateLedger(context.TODO(), &qldb.UpdateLedgerInput{DeletionProtection: &deletionProtection, Name: testBase.ledgerName})
 	_, err := testBase.qldb.DeleteLedger(context.TODO(), &qldb.DeleteLedgerInput{Name: testBase.ledgerName})
 	if err != nil {
 		var rnf *types.ResourceNotFoundException
