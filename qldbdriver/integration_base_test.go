@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,8 +75,6 @@ func (testBase *testBase) createLedger(t *testing.T) {
 
 func (testBase *testBase) deleteLedger(t *testing.T) {
 	testBase.logger.Log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName), LogInfo)
-	deletionProtection := false
-	_, _ = testBase.qldb.UpdateLedger(context.TODO(), &qldb.UpdateLedgerInput{DeletionProtection: &deletionProtection, Name: testBase.ledgerName})
 	_, err := testBase.qldb.DeleteLedger(context.TODO(), &qldb.DeleteLedgerInput{Name: testBase.ledgerName})
 	if err != nil {
 		var rnf *types.ResourceNotFoundException
@@ -83,11 +82,23 @@ func (testBase *testBase) deleteLedger(t *testing.T) {
 			testBase.logger.Log("Encountered resource not found", LogInfo)
 			return
 		}
-		testBase.logger.Log("Encountered error during deletion", LogInfo)
-		testBase.logger.Log(err.Error(), LogInfo)
-		t.Errorf("Failing test due to deletion failure")
-		assert.NoError(t, err)
-		return
+		var riu *types.ResourceInUseException
+		if errors.As(err, &riu) {
+			if strings.Contains(riu.ErrorMessage(), "Ledger is being created") {
+				testBase.logger.Log("Encountered resource still being created", LogInfo)
+				testBase.waitForActive()
+				_, err = testBase.qldb.DeleteLedger(context.TODO(), &qldb.DeleteLedgerInput{Name: testBase.ledgerName})
+			} else if strings.Contains(riu.ErrorMessage(), "Ledger is being deleted") {
+				err = nil
+			}
+		}
+		if err != nil {
+			testBase.logger.Log("Encountered error during deletion", LogInfo)
+			testBase.logger.Log(err.Error(), LogInfo)
+			t.Errorf("Failing test due to deletion failure")
+			assert.NoError(t, err)
+			return
+		}
 	}
 	testBase.waitForDeletion()
 }
