@@ -21,8 +21,8 @@ github.com/aws/aws-sdk-go-v2/internal/ini v1.5.0 h1:DqOQvIfmGkXZUVJnl9VRk0AnxyS5
 github.com/aws/aws-sdk-go-v2/internal/ini v1.5.0/go.mod h1:VV/Kbw9Mg1GWJOT9WK+oTL3cWZiXtapnNvDSRqTZLsg=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.1 h1:2OXw3ppu1XsB6rqKEMV4tnecTjIY3PRV2U6IP6KPJQo=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.1/go.mod h1:FZB4AdakIqW/yERVdGJA6Z9jraax1beXfhBBnK2wwR8=
-github.com/aws/aws-sdk-go-v2/service/qldb v1.14.20 h1:3B5nC4Ih+aC/hRIkswN0pX1W6ityjWZL40gz/YSZXAo=
-github.com/aws/aws-sdk-go-v2/service/qldb v1.14.20/go.mod h1:9morR/lAo8ziBkYz5gxtGe0FzAjkcUfxAqSk0Q9obDc=
+github.com/aws/aws-sdk-go-v2/service/qldb v1.18.0 h1:kYYQaxxAYAvmbCRyDx02WNV6nLb5xF/16OrfLETg9J8=
+github.com/aws/aws-sdk-go-v2/service/qldb v1.18.0/go.mod h1:Nz2qg+oWxZXZ61RWfWk9yAJT5v8SYQQwqRfl8SNM4B4=
 github.com/aws/aws-sdk-go-v2/service/qldbsession v1.13.19 h1:b1iyvzvZDRWtsCEluCWogdTAl/Bpfo76pm7GtGU+Er4=
 github.com/aws/aws-sdk-go-v2/service/qldbsession v1.13.19/go.mod h1:xX3iRpzN9iJYgP45OUYHJWFLrre0/s1Mur8SjOwg3RU=
 github.com/aws/aws-sdk-go-v2/service/sso v1.17.0 h1:I/Oh3IxGPfHXiGnwM54TD6hNr/8TlUrBXAtTyGhR+zw=
