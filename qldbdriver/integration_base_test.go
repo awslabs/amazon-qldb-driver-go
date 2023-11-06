@@ -18,7 +18,9 @@ package qldbdriver
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -49,8 +51,15 @@ const (
 	multipleDocumentValue2 = "MultipleDocumentValue2"
 )
 
-func createTestBase() *testBase {
+var ledgerSuffix string
 
+func TestMain(m *testing.M) {
+	flag.StringVar(&ledgerSuffix, "ledgerSuffix", "", "suffix for integration test ledger name (default \"\")")
+	flag.Parse()
+	os.Exit(m.Run())
+}
+
+func createTestBase() *testBase {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		panic(err)
@@ -59,22 +68,25 @@ func createTestBase() *testBase {
 		options.Region = region
 	})
 	logger := defaultLogger{}
-	ledgerName := ledger
+	ledgerName := ledger + ledgerSuffix
 	regionName := region
 	return &testBase{client, &ledgerName, &regionName, logger}
 }
 
 func (testBase *testBase) createLedger(t *testing.T) {
 	testBase.logger.Log(fmt.Sprint("Creating ledger named ", *testBase.ledgerName, " ..."), LogInfo)
-	deletionProtection := false
-	permissions := types.PermissionsModeAllowAll
-	_, err := testBase.qldb.CreateLedger(context.TODO(), &qldb.CreateLedgerInput{Name: testBase.ledgerName, DeletionProtection: &deletionProtection, PermissionsMode: permissions})
+	_, err := testBase.qldb.CreateLedger(context.TODO(), &qldb.CreateLedgerInput{
+		Name:               testBase.ledgerName,
+		DeletionProtection: newBool(false),
+		PermissionsMode:    types.PermissionsModeStandard,
+	})
 	assert.NoError(t, err)
 	testBase.waitForActive()
 }
 
 func (testBase *testBase) deleteLedger(t *testing.T) {
 	testBase.logger.Log(fmt.Sprint("Deleting ledger ", *testBase.ledgerName), LogInfo)
+
 	_, err := testBase.qldb.DeleteLedger(context.TODO(), &qldb.DeleteLedgerInput{Name: testBase.ledgerName})
 	if err != nil {
 		var rnf *types.ResourceNotFoundException
@@ -176,3 +188,5 @@ func (e *InternalFailure) ErrorMessage() string {
 }
 func (e *InternalFailure) ErrorCode() string             { return "InternalFailure" }
 func (e *InternalFailure) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
+
+func newBool(b bool) *bool { return &b }
