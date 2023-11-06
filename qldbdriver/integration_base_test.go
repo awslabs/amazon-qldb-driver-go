@@ -18,6 +18,7 @@ package qldbdriver
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"strings"
 	"testing"
@@ -49,6 +50,8 @@ const (
 	multipleDocumentValue2 = "MultipleDocumentValue2"
 )
 
+var ledgerSuffix = flag.String("ledger_suffix", "", "Suffix to the ledger name")
+
 func createTestBase() *testBase {
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
@@ -59,7 +62,7 @@ func createTestBase() *testBase {
 		options.Region = region
 	})
 	logger := defaultLogger{}
-	ledgerName := ledger
+	ledgerName := ledger + *ledgerSuffix
 	regionName := region
 	return &testBase{client, &ledgerName, &regionName, logger}
 }
