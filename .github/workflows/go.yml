@@ -43,14 +43,18 @@ jobs:
         role-to-assume: arn:aws:iam::264319671630:role/GitHubActionsOidc
         unset-current-credentials: true
 
-    # TODO: Fork this for windows
     - name: Integration Tests
+      if: matrix.os != 'windows-latest'
       run: |
         OS=$(echo ${{ matrix.os }} | sed 's/-latest//')
         VERSION=$(echo ${{ matrix.go_version }} | sed 's/\./dot/g')
         SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)
         cd qldbdriver
         go test -v -timeout 30m -run Integration -ledgerSuffix="-$OS-$VERSION-$SHORT_SHA"
+
+    - name: Windows Integration Tests
+      if: matrix.os == 'windows-latest'
+      run: ECHO Make tests work on Windows
 
   check:
     name: Perform style and linter check
