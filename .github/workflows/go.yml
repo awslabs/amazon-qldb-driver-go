@@ -47,7 +47,7 @@ jobs:
       run: |
         OS=$(echo ${{ matrix.os }} | sed 's/-latest//')
         VERSION=$(echo ${{ matrix.go_version }} | sed 's/\./dot/g')
-        SHORT_SHA=$(git rev-parse --short $GITHUB_SHA))
+        SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)
         go test -v -timeout 30m -run Integration -ledgerSuffix="-$OS-$VERSION-$SHORT_SHA" ./...
 
   check:
