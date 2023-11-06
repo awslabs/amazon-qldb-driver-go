@@ -3,6 +3,9 @@
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue)](https://github.com/awslabs/amazon-qldb-driver-go/blob/master/LICENSE)
 [![AWS Provider](https://img.shields.io/badge/provider-AWS-orange?logo=amazon-aws&color=ff9900)](https://aws.amazon.com/qldb/)
 
+[![Go Build](https://github.com/awslabs/amazon-qldb-driver-go/actions/workflows/go.yml/badge.svg)](https://github.com/awslabs/amazon-qldb-driver-go/actions/workflows/go.yml)
+[![CodeQL](https://github.com/awslabs/amazon-qldb-driver-go/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/awslabs/amazon-qldb-driver-go/actions/workflows/codeql-analysis.yml)
+
 This is the Go driver for [Amazon Quantum Ledger Database (QLDB)](https://aws.amazon.com/qldb/), which allows Golang developers 
 to write software that makes use of Amazon QLDB.
 
