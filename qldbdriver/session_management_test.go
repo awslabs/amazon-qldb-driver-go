@@ -33,13 +33,18 @@ func TestSessionManagementIntegration(t *testing.T) {
 	}
 
 	// setup
-	testBase := createTestBase()
+	testBase := createTestBase("Golang-SessionMgmt")
 	testBase.deleteLedger(t)
+	testBase.waitForDeletion()
 	testBase.createLedger(t)
 	defer testBase.deleteLedger(t)
 
 	t.Run("Fail connecting to non existent ledger", func(t *testing.T) {
-		driver, err := testBase.getDriver("NoSuchALedger", 10, 4)
+		driver, err := testBase.getDriver(&testDriverOptions{
+			ledgerName: "NoSuchLedger",
+			maxConcTx:  10,
+			retryLimit: 4,
+		})
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 
@@ -51,7 +56,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 	})
 
 	t.Run("Get session when pool doesnt have session and has not hit limit", func(t *testing.T) {
-		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
+		driver, err := testBase.getDefaultDriver()
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 
@@ -61,7 +66,7 @@ func TestSessionManagementIntegration(t *testing.T) {
 	})
 
 	t.Run("Get session when pool has session and has not hit limit", func(t *testing.T) {
-		driver, err := testBase.getDriver(*testBase.ledgerName, 10, 4)
+		driver, err := testBase.getDefaultDriver()
 		require.NoError(t, err)
 		defer driver.Shutdown(context.Background())
 
@@ -77,7 +82,11 @@ func TestSessionManagementIntegration(t *testing.T) {
 	})
 
 	t.Run("Get session when pool doesnt have session and has hit limit", func(t *testing.T) {
-		driver, err := testBase.getDriver(*testBase.ledgerName, 1, 4)
+		driver, err := testBase.getDriver(&testDriverOptions{
+			ledgerName: *testBase.ledgerName,
+			maxConcTx:  1,
+			retryLimit: 4,
+		})
 		require.NoError(t, err)
 		driver.Shutdown(context.Background())
 
@@ -102,7 +111,11 @@ func TestSessionManagementIntegration(t *testing.T) {
 	})
 
 	t.Run("Get session when driver is closed", func(t *testing.T) {
-		driver, err := testBase.getDriver(*testBase.ledgerName, 1, 4)
+		driver, err := testBase.getDriver(&testDriverOptions{
+			ledgerName: *testBase.ledgerName,
+			maxConcTx:  1,
+			retryLimit: 4,
+		})
 		require.NoError(t, err)
 		driver.Shutdown(context.Background())
 
