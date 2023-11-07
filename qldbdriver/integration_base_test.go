@@ -40,7 +40,6 @@ type testBase struct {
 }
 
 const (
-	ledger                 = "Gotest"
 	region                 = "us-east-2"
 	testTableName          = "GoIntegrationTestTable"
 	indexAttribute         = "Name"
@@ -52,7 +51,7 @@ const (
 
 var ledgerSuffix = flag.String("ledger_suffix", "", "Suffix to the ledger name")
 
-func createTestBase() *testBase {
+func createTestBase(ledgerNameBase string) *testBase {
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
@@ -62,16 +61,18 @@ func createTestBase() *testBase {
 		options.Region = region
 	})
 	logger := defaultLogger{}
-	ledgerName := ledger + *ledgerSuffix
+	ledgerName := ledgerNameBase + *ledgerSuffix
 	regionName := region
 	return &testBase{client, &ledgerName, &regionName, logger}
 }
 
 func (testBase *testBase) createLedger(t *testing.T) {
 	testBase.logger.Log(fmt.Sprint("Creating ledger named ", *testBase.ledgerName, " ..."), LogInfo)
-	deletionProtection := false
-	permissions := types.PermissionsModeAllowAll
-	_, err := testBase.qldb.CreateLedger(context.TODO(), &qldb.CreateLedgerInput{Name: testBase.ledgerName, DeletionProtection: &deletionProtection, PermissionsMode: permissions})
+	_, err := testBase.qldb.CreateLedger(context.TODO(), &qldb.CreateLedgerInput{
+		Name:               testBase.ledgerName,
+		DeletionProtection: newBool(false),
+		PermissionsMode:    types.PermissionsModeStandard,
+	})
 	assert.NoError(t, err)
 	testBase.waitForActive()
 }
@@ -103,7 +104,6 @@ func (testBase *testBase) deleteLedger(t *testing.T) {
 			return
 		}
 	}
-	testBase.waitForDeletion()
 }
 
 func (testBase *testBase) waitForActive() {
@@ -135,7 +135,21 @@ func (testBase *testBase) waitForDeletion() {
 	}
 }
 
-func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions int, retryLimit int) (*QLDBDriver, error) {
+func (testBase *testBase) getDefaultDriver() (*QLDBDriver, error) {
+	return testBase.getDriver(&testDriverOptions{
+		ledgerName: *testBase.ledgerName,
+		maxConcTx:  10,
+		retryLimit: 4,
+	})
+}
+
+type testDriverOptions struct {
+	ledgerName string
+	maxConcTx  int
+	retryLimit int
+}
+
+func (testBase *testBase) getDriver(tdo *testDriverOptions) (*QLDBDriver, error) {
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
@@ -145,10 +159,10 @@ func (testBase *testBase) getDriver(ledgerName string, maxConcurrentTransactions
 		options.Region = region
 	})
 
-	return New(ledgerName, qldbSession, func(options *DriverOptions) {
+	return New(tdo.ledgerName, qldbSession, func(options *DriverOptions) {
 		options.LoggerVerbosity = LogInfo
-		options.MaxConcurrentTransactions = maxConcurrentTransactions
-		options.RetryPolicy.MaxRetryLimit = retryLimit
+		options.MaxConcurrentTransactions = tdo.maxConcTx
+		options.RetryPolicy.MaxRetryLimit = tdo.retryLimit
 	})
 }
 
@@ -179,3 +193,5 @@ func (e *InternalFailure) ErrorMessage() string {
 }
 func (e *InternalFailure) ErrorCode() string             { return "InternalFailure" }
 func (e *InternalFailure) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
+
+func newBool(b bool) *bool { return &b }
